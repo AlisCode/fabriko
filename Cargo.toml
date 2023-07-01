@@ -1,0 +1,2 @@
+[workspace]
+members = ["fabriko", "fabriko_derive", "examples/*"]

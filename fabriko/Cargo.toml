@@ -1,0 +1,11 @@
+[package]
+name = "fabriko"
+version = "0.1.0"
+edition = "2021"
+authors = ["Olivier Pinon <oliv.pinon@gmail.com>"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fabriko_derive = { path = "../fabriko_derive" }

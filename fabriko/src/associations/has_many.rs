@@ -1,46 +1,68 @@
 use crate::factory::{Factory, FactoryContext};
 
+use crate::associations::belongs_to::BelongingTo;
+use crate::tuple_hack::AppendTuple;
+
 #[derive(Debug, Default)]
 pub struct HasMany<F>(Vec<F>);
 
-impl<F> HasMany<F> {
-    pub fn create<CTX: FactoryContext, FUNC: Fn(F) -> F>(
-        self,
-        ctx: &mut CTX,
-        f: FUNC,
-    ) -> Result<Vec<<F as Factory<CTX>>::Output>, CTX::Error>
-    where
-        F: Factory<CTX>,
-    {
+pub trait CreateHasMany<CTX: FactoryContext, R> {
+    type Output;
+    fn create_has_many(self, ctx: &mut CTX, resource: &R) -> Result<Vec<Self::Output>, CTX::Error>;
+}
+
+impl<CTX, F, R> CreateHasMany<CTX, R> for HasMany<F>
+where
+    CTX: FactoryContext,
+    F: Factory<CTX> + BelongingTo<R>,
+{
+    type Output = <F as Factory<CTX>>::Output;
+    fn create_has_many(self, ctx: &mut CTX, resource: &R) -> Result<Vec<Self::Output>, CTX::Error> {
         self.0
             .into_iter()
-            .map(|factory| f(factory).create(ctx))
+            .map(|factory| factory.belonging_to(resource).create(ctx))
             .collect()
     }
 }
 
-pub trait CreateHasMany<CTX: FactoryContext> {
-    type Factory;
-    type FactoryOutput;
-    fn create_has_many<FUNC: Fn(Self::Factory) -> Self::Factory>(
-        self,
-        ctx: &mut CTX,
-        before_creation: FUNC,
-    ) -> Result<Vec<Self::FactoryOutput>, CTX::Error>;
+pub struct FactoryWithResources<F, R> {
+    pub factory: F,
+    pub resources: R,
 }
 
-impl<CTX: FactoryContext, F: Factory<CTX>> CreateHasMany<CTX> for HasMany<F> {
-    type Factory = F;
-    type FactoryOutput = <F as Factory<CTX>>::Output;
+impl<CTX: FactoryContext, F, R> Factory<CTX> for FactoryWithResources<F, R>
+where
+    F: Factory<CTX>,
+    R: BelongingTo<<F as Factory<CTX>>::Output> + Factory<CTX>,
+{
+    type Output = (<F as Factory<CTX>>::Output, <R as Factory<CTX>>::Output);
 
-    fn create_has_many<FUNC: Fn(Self::Factory) -> Self::Factory>(
+    fn create(self, ctx: &mut CTX) -> Result<Self::Output, <CTX as FactoryContext>::Error> {
+        let FactoryWithResources { factory, resources } = self;
+        let resource = factory.create(ctx)?;
+        let resources = resources.belonging_to(&resource).create(ctx)?;
+        Ok((resource, resources))
+    }
+}
+
+impl<F, R: AppendTuple> FactoryWithResources<F, R> {
+    pub fn with_resource<RR>(
         self,
-        ctx: &mut CTX,
-        before_creation: FUNC,
-    ) -> Result<Vec<Self::FactoryOutput>, CTX::Error> {
-        self.0
-            .into_iter()
-            .map(|factory| before_creation(factory).create(ctx))
-            .collect()
+        resource: RR,
+    ) -> FactoryWithResources<F, <R as AppendTuple>::Output<RR>> {
+        let FactoryWithResources { factory, resources } = self;
+        FactoryWithResources {
+            factory,
+            resources: resources.append(resource),
+        }
+    }
+}
+
+pub trait WithRelatedResources: Sized {
+    fn with_related_resources(self) -> FactoryWithResources<Self, ()> {
+        FactoryWithResources {
+            factory: self,
+            resources: (),
+        }
     }
 }

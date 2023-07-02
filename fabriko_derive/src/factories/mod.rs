@@ -23,7 +23,8 @@ struct FactoryDeriveField {
     mixin: bool,
     dependant: Option<Expr>,
     belongs_to: Option<BelongsToAssociation>,
-    has_many: Option<HasManyAssociation>,
+    #[darling(default)]
+    has_many: bool,
 }
 
 #[derive(FromMeta)]
@@ -32,12 +33,6 @@ struct BelongsToAssociation {
     field: Ident,
     /// TODO: Probably unnecessary
     id_ty: Path,
-}
-
-#[derive(FromMeta)]
-struct HasManyAssociation {
-    extract: Ident,
-    inject: Ident,
 }
 
 impl FactoryDeriveInput {
@@ -166,14 +161,15 @@ fn derive_factory_implementation(
                  has_many,
                  ..
              }| {
-                has_many
-                    .as_ref()
-                    .map(|HasManyAssociation { extract, inject }| {
-                        conditions.push(quote::quote! { #ty: ::fabriko::CreateHasMany<CTX>, });
-                        quote::quote! {
-                            let _ = #ident.create_has_many(ctx, |__fac| __fac.#inject(__resource.#extract))?;
-                        }
-                    })
+                if *has_many {
+                    conditions.push(
+                        quote::quote! { #ty: ::fabriko::CreateHasMany<CTX, <#attributes_ty_path as BuildResource<CTX>>::Output>, },
+                    );
+                    return Some(quote::quote! {
+                        let _ = #ident.create_has_many(ctx, &__resource)?;
+                    });
+                }
+                None
             },
         )
         .collect();
@@ -207,6 +203,7 @@ fn derive_factory_implementation(
                 .build_resource(ctx)?;
 
                 // Associations (post-create)
+                use ::fabriko::CreateHasMany;
                 #associations_post_create
 
                 Ok(__resource)
@@ -217,7 +214,7 @@ fn derive_factory_implementation(
 
 impl FactoryDeriveField {
     pub fn is_factory_attribute(&self) -> bool {
-        true
+        !self.has_many
     }
 
     pub fn should_derive_setter(&self) -> bool {

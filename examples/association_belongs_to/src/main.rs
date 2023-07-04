@@ -1,6 +1,5 @@
 use fabriko::{
-    AppendTuple, BelongingTo, BelongsTo, BuildResource, Factory, FactoryContext,
-    FactoryWithResources, WithRelatedResources,
+    BelongingTo, BelongsTo, BuildResource, Factory, FactoryContext, WithRelatedResources,
 };
 
 #[derive(Debug, Default)]
@@ -86,30 +85,9 @@ impl BuildResource<TestContext> for TodoFactoryAttributes {
 
 #[derive(Default, Factory)]
 #[factory(attributes = "TodoGroupFactoryAttributes")]
+#[factory(has_many(factory = "TodoFactory", name = "todo"))]
 pub struct TodoGroupFactory {
     title: String,
-}
-
-impl WithRelatedResources for TodoGroupFactory {}
-
-pub trait TodoGroupFactoryAssociatedResources {
-    type R: AppendTuple;
-    fn with_todo<F: Fn(TodoFactory) -> TodoFactory>(
-        self,
-        func: F,
-    ) -> FactoryWithResources<TodoGroupFactory, <Self::R as AppendTuple>::Output<TodoFactory>>;
-}
-
-impl<R: AppendTuple> TodoGroupFactoryAssociatedResources
-    for FactoryWithResources<TodoGroupFactory, R>
-{
-    type R = R;
-    fn with_todo<F: Fn(TodoFactory) -> TodoFactory>(
-        self,
-        func: F,
-    ) -> FactoryWithResources<TodoGroupFactory, <Self::R as AppendTuple>::Output<TodoFactory>> {
-        self.with_resource(func(TodoFactory::default()))
-    }
 }
 
 pub struct TodoGroupFactoryAttributes {
@@ -138,8 +116,8 @@ fn main() {
     // before a TodoGroup is created because our data model does not allow that.
 
     // Fabriko allows the user to effortlessly create resources associated with each other :
-    // * By automatically declaring the "parent" that this resource depends on. The default
-    // attributes will be used, but it is easy to customize the "parent" if needed.
+    // * By automatically declaring the "container" that this resource depends on, if relevant.
+    // The default attributes will be used, but it is easy to customize the "container" if needed.
     // * By making it easy to create associated resources ("children") - e.g. create todos
     // belonging to a group
 
@@ -147,12 +125,13 @@ fn main() {
     // your domain language, all the while reusing the implementation of other factories. Here are
     // some examples :
 
-    // The user can create a resource "container"
+    // The user can create a container resource that has many resources (a group, here)
     let todo_group = TodoGroupFactory::default()
         .title("My TodoGroup".to_string())
         .create(&mut cx)
         .expect("Failed to create a todo group");
-    // .. and then create other resources that will refer to the "container"
+    // .. and then create other resources that will be contained inside the container
+    // (do_this and do_that are contained inside the group)
     let do_this = TodoFactory::default()
         .todo_group(todo_group.id)
         .title("Do this".to_string())
@@ -167,7 +146,8 @@ fn main() {
     dbg!(do_this);
     dbg!(do_that);
 
-    // The user can create a group and declare resources that belong to it
+    // Alternatively, the user can create a container (group) and declare resources (todos)
+    // that belongs to it. We then get access to those resources.
     let (tg, (todo_one, todo_two)) = TodoGroupFactory::default()
         .title("The TodoGroup".to_string())
         .with_related_resources()
@@ -179,15 +159,17 @@ fn main() {
     dbg!(todo_one);
     dbg!(todo_two);
 
-    // The user can easily create a todo, automatically creating the group which it belongs to.
-    // The group will be created using the default arguments of the TodoGroupFactory
+    // The user can easily create a resource that needs to belong to a container (here, a todo
+    // belonging to a group), **without** explicitly defining the container. This is great to keep
+    // your tests concise if you don't care about the container resource.
+    // The group will be created using the default arguments of the referenced factory (TodoGroupFactory)
     let todo_in_anonymous_group = TodoFactory::default()
         .title("Todo in anonymous group".to_string())
         .create(&mut cx)
         .expect("Failed to create a todo contained in an anonymous group");
     dbg!(todo_in_anonymous_group);
 
-    // The user can easily create a todo, and customize the group it belongs to
+    // The user can easily create a resource that needs to belong to a container, and customize the group it belongs to
     let todo_in_named_group = TodoFactory::default()
         .belonging_to_todo_group(|tg| tg.title("Named Group".to_string()))
         .title("My todo".to_string())

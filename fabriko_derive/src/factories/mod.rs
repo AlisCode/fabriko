@@ -8,14 +8,20 @@ use syn::{DeriveInput, Expr, Ident, Path, Type};
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named))]
 #[darling(attributes(factory))]
+/// TODO: Document
+/// TODO: Split into own module
 struct FactoryDeriveInput {
     ident: Ident,
     data: Data<darling::util::Ignored, FactoryDeriveField>,
     attributes: Path,
+    #[darling(multiple)]
+    has_many: Vec<HasManyAssociation>,
 }
 
 #[derive(FromField)]
 #[darling(attributes(factory))]
+/// TODO: Document
+/// TODO: Split into own module
 struct FactoryDeriveField {
     ident: Option<Ident>,
     ty: Type,
@@ -23,11 +29,20 @@ struct FactoryDeriveField {
     mixin: bool,
     dependant: Option<Expr>,
     belongs_to: Option<BelongsToAssociation>,
-    #[darling(default)]
-    has_many: bool,
 }
 
 #[derive(FromMeta)]
+/// TODO: Document
+/// TODO: Split into own module
+struct HasManyAssociation {
+    #[darling(rename = "factory")]
+    for_factory: Path,
+    name: Ident,
+}
+
+#[derive(FromMeta)]
+/// TODO: Document
+/// TODO: Split into own module
 struct BelongsToAssociation {
     ty: Path,
     field: Ident,
@@ -41,6 +56,7 @@ impl FactoryDeriveInput {
             ident,
             data,
             attributes,
+            has_many,
         } = self;
         let fields = match data {
             Data::Enum(_) => unimplemented!(),
@@ -50,13 +66,84 @@ impl FactoryDeriveInput {
         let mixin_implementations = derive_mixin_implementations(ident, fields)?;
         let setter_implementations = derive_setters_implementations(ident, fields)?;
         let factory_implementation = derive_factory_implementation(ident, attributes, fields)?;
+        // We don't need the code for associated resources if we don't have any
+        let associated_resources_definition_and_implementation = if !has_many.is_empty() {
+            derive_factory_associated_resources_and_implementation(ident, has_many)?
+        } else {
+            TokenStream::default()
+        };
 
         Ok(quote::quote! {
             #mixin_implementations
             #setter_implementations
             #factory_implementation
+            #associated_resources_definition_and_implementation
         })
     }
+}
+
+impl HasManyAssociation {
+    /// TODO: this function and derive_fn_implementation can be factored
+    fn derive_fn_definition(&self, factory_ident: &Ident) -> TokenStream {
+        let HasManyAssociation { for_factory, name } = self;
+        let fn_ident = Ident::new(&format!("with_{name}"), name.span());
+        quote::quote! {
+            fn #fn_ident<F: FnOnce(#for_factory) -> #for_factory>(
+                self,
+                func: F,
+            ) -> ::fabriko::FactoryWithResources<#factory_ident, <Self::R as ::fabriko::AppendTuple>::Output<#for_factory>>;
+        }
+    }
+
+    /// TODO: this function and derive_fn_definition can be factored
+    fn derive_fn_implementation(&self, factory_ident: &Ident) -> TokenStream {
+        let HasManyAssociation { for_factory, name } = self;
+        let fn_ident = Ident::new(&format!("with_{name}"), name.span());
+        quote::quote! {
+            fn #fn_ident<F: FnOnce(#for_factory) -> #for_factory>(
+                self,
+                func: F,
+            ) -> ::fabriko::FactoryWithResources<#factory_ident, <Self::R as ::fabriko::AppendTuple>::Output<#for_factory>> {
+                self.with_resource(func(#for_factory::default()))
+            }
+        }
+    }
+}
+
+/// TODO: Split into own module
+fn derive_factory_associated_resources_and_implementation(
+    factory_ident: &Ident,
+    has_many: &[HasManyAssociation],
+) -> darling::Result<TokenStream> {
+    let trait_identifier = Ident::new(
+        &format!("{factory_ident}AssociatedResources"),
+        factory_ident.span(),
+    );
+
+    let trait_function_definitions: TokenStream = has_many
+        .iter()
+        .map(|hma| hma.derive_fn_definition(factory_ident))
+        .collect();
+    let trait_function_implementations: TokenStream = has_many
+        .iter()
+        .map(|hma| hma.derive_fn_implementation(factory_ident))
+        .collect();
+
+    Ok(quote::quote! {
+        impl fabriko::WithRelatedResources for #factory_ident {}
+
+        pub trait TodoGroupFactoryAssociatedResources {
+            type R: fabriko::AppendTuple;
+            #trait_function_definitions
+        }
+
+        impl<R: ::fabriko::AppendTuple> #trait_identifier
+            for ::fabriko::FactoryWithResources<#factory_ident, R>
+        {
+            type R = R;
+            #trait_function_implementations
+        }
+    })
 }
 
 fn derive_mixin_implementations(
@@ -152,28 +239,6 @@ fn derive_factory_implementation(
         )
         .collect();
 
-    let associations_post_create: TokenStream = fields
-        .iter()
-        .filter_map(
-            |FactoryDeriveField {
-                 ident,
-                 ty,
-                 has_many,
-                 ..
-             }| {
-                if *has_many {
-                    conditions.push(
-                        quote::quote! { #ty: ::fabriko::CreateHasMany<CTX, <#attributes_ty_path as BuildResource<CTX>>::Output>, },
-                    );
-                    return Some(quote::quote! {
-                        let _ = #ident.create_has_many(ctx, &__resource)?;
-                    });
-                }
-                None
-            },
-        )
-        .collect();
-
     let conditions: TokenStream = conditions.into_iter().collect();
     Ok(quote::quote! {
         impl<CTX: ::fabriko::FactoryContext> ::fabriko::Factory<CTX> for #factory_ident
@@ -202,10 +267,6 @@ fn derive_factory_implementation(
                 }
                 .build_resource(ctx)?;
 
-                // Associations (post-create)
-                use ::fabriko::CreateHasMany;
-                #associations_post_create
-
                 Ok(__resource)
             }
         }
@@ -213,8 +274,9 @@ fn derive_factory_implementation(
 }
 
 impl FactoryDeriveField {
+    /// TODO: Remove ?
     pub fn is_factory_attribute(&self) -> bool {
-        !self.has_many
+        true
     }
 
     pub fn should_derive_setter(&self) -> bool {

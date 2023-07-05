@@ -9,9 +9,15 @@ pub(crate) struct MixinDeriveInput {
 }
 
 #[derive(FromField)]
+#[darling(attributes(mixin))]
+/// TODO: Document
 struct MixinDeriveField {
     ident: Option<Ident>,
     ty: Type,
+    #[darling(default)]
+    /// When `into` is set, the generated setter will be generic over any
+    /// type that implements Into<T> where T is the type of the field
+    into: bool,
 }
 
 impl MixinDeriveInput {
@@ -55,29 +61,52 @@ impl MixinDeriveInput {
 
 impl MixinDeriveField {
     fn derive_setter_declaration(&self) -> TokenStream {
-        let MixinDeriveField { ident, ty } = self;
-        quote::quote!(
-            fn #ident(self, #ident: #ty) -> Self;
-        )
+        let MixinDeriveField { ident, ty, into } = self;
+        if *into {
+            quote::quote!(
+                fn #ident<INTO_T: Into<#ty>>(self, #ident: INTO_T) -> Self;
+            )
+        } else {
+            quote::quote!(
+                fn #ident(self, #ident: #ty) -> Self;
+            )
+        }
     }
 
     fn derive_setter_implementation(&self) -> TokenStream {
-        let MixinDeriveField { ident, ty } = self;
-        quote::quote!(
-            fn #ident(mut self, #ident: #ty) -> Self {
-                self.#ident = #ident;
-                self
-            }
-        )
+        let MixinDeriveField { ident, ty, into } = self;
+        if *into {
+            quote::quote!(
+                fn #ident<INTO_T: Into<#ty>>(mut self, #ident: INTO_T) -> Self {
+                    self.#ident = #ident.into();
+                    self
+                }
+            )
+        } else {
+            quote::quote!(
+                fn #ident(mut self, #ident: #ty) -> Self {
+                    self.#ident = #ident;
+                    self
+                }
+            )
+        }
     }
 
     fn derive_setter_implementation_for_generic_t(&self) -> TokenStream {
-        let MixinDeriveField { ident, ty } = self;
-        quote::quote!(
-            fn #ident(self, #ident: #ty) -> Self {
-                self.with_mixin(|__mixin| __mixin.#ident(#ident))
-            }
-        )
+        let MixinDeriveField { ident, ty, into } = self;
+        if *into {
+            quote::quote!(
+                fn #ident<INTO_T: Into<#ty>>(self, #ident: INTO_T) -> Self {
+                    self.with_mixin(|__mixin| __mixin.#ident(#ident))
+                }
+            )
+        } else {
+            quote::quote!(
+                fn #ident(self, #ident: #ty) -> Self {
+                    self.with_mixin(|__mixin| __mixin.#ident(#ident))
+                }
+            )
+        }
     }
 }
 

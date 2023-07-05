@@ -8,9 +8,11 @@ impl FactoryContext for TestContext {
 #[derive(Debug, Default, Factory)]
 #[factory(attributes = "UserFactoryAttributes")]
 pub struct UserFactory {
+    #[factory(into)]
     firstname: String,
+    #[factory(into)]
     lastname: String,
-    #[factory(dependant = format!("{firstname}.{lastname}@test.com"))]
+    #[factory(into, dependant = format!("{firstname}.{lastname}@test.com"))]
     email: String,
 }
 
@@ -58,8 +60,8 @@ impl BuildResource<TestContext> for UserFactoryAttributes {
 fn main() {
     let mut cx = TestContext;
     let user: User = UserFactory::default()
-        .firstname("Alice".to_string())
-        .lastname("Cooper".to_string())
+        .firstname("Alice")
+        .lastname("Cooper")
         .create(&mut cx)
         .expect("Failed to create user");
     println!("{}", user.description());

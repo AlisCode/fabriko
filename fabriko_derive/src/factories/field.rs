@@ -7,13 +7,17 @@ use super::associations::belongs_to::BelongsToAssociation;
 #[derive(FromField)]
 #[darling(attributes(factory))]
 /// TODO: Document
-/// TODO: support into
 /// TODO: support skip
 pub(crate) struct FactoryDeriveField {
     pub(crate) ident: Option<Ident>,
     pub(crate) ty: Type,
     #[darling(default)]
     pub(crate) mixin: bool,
+    #[darling(default)]
+    /// When `into` is used, the generated setter will be
+    /// generic over anything that implements Into<T>, where
+    /// T is the factory field's type
+    pub(crate) into: bool,
     pub(crate) dependant: Option<Expr>,
     pub(crate) belongs_to: Option<BelongsToAssociation>,
 }

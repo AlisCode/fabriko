@@ -43,6 +43,7 @@ pub struct TodoGroup {
 #[derive(Default, Factory)]
 #[factory(attributes = "TodoFactoryAttributes")]
 pub struct TodoFactory {
+    #[factory(into)]
     title: String,
     done: bool,
     #[factory(belongs_to(ty = "TodoGroup", field = "id", id_ty = "i32"))]
@@ -87,6 +88,7 @@ impl BuildResource<TestContext> for TodoFactoryAttributes {
 #[factory(attributes = "TodoGroupFactoryAttributes")]
 #[factory(has_many(factory = "TodoFactory", name = "todo"))]
 pub struct TodoGroupFactory {
+    #[factory(into)]
     title: String,
 }
 
@@ -127,19 +129,19 @@ fn main() {
 
     // The user can create a container resource that has many resources (a group, here)
     let todo_group = TodoGroupFactory::default()
-        .title("My TodoGroup".to_string())
+        .title("My TodoGroup")
         .create(&mut cx)
         .expect("Failed to create a todo group");
     // .. and then create other resources that will be contained inside the container
     // (do_this and do_that are contained inside the group)
     let do_this = TodoFactory::default()
         .todo_group(todo_group.id)
-        .title("Do this".to_string())
+        .title("Do this")
         .create(&mut cx)
         .expect("Failed to create a todo in the todo group");
     let do_that = TodoFactory::default()
         .todo_group(todo_group.id)
-        .title("Do that".to_string())
+        .title("Do that")
         .create(&mut cx)
         .expect("Failed to create a todo in the todo group");
     dbg!(todo_group);
@@ -151,8 +153,8 @@ fn main() {
     let (tg, (todo_one, todo_two)) = TodoGroupFactory::default()
         .title("The TodoGroup".to_string())
         .with_related_resources()
-        .with_todo(|todo| todo.title("Todo one".to_string()))
-        .with_todo(|todo| todo.title("Todo two".to_string()))
+        .with_todo(|todo| todo.title("Todo one"))
+        .with_todo(|todo| todo.title("Todo two"))
         .create(&mut cx)
         .expect("Failed to create tg and todo_in_tg");
     dbg!(tg);
@@ -164,15 +166,15 @@ fn main() {
     // your tests concise if you don't care about the container resource.
     // The group will be created using the default arguments of the referenced factory (TodoGroupFactory)
     let todo_in_anonymous_group = TodoFactory::default()
-        .title("Todo in anonymous group".to_string())
+        .title("Todo in anonymous group")
         .create(&mut cx)
         .expect("Failed to create a todo contained in an anonymous group");
     dbg!(todo_in_anonymous_group);
 
     // The user can easily create a resource that needs to belong to a container, and customize the group it belongs to
     let todo_in_named_group = TodoFactory::default()
-        .belonging_to_todo_group(|tg| tg.title("Named Group".to_string()))
-        .title("My todo".to_string())
+        .belonging_to_todo_group(|tg| tg.title("Named Group"))
+        .title("My todo")
         .create(&mut cx)
         .expect("Failed to create a todo contained in a named group");
     dbg!(todo_in_named_group);

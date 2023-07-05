@@ -11,7 +11,9 @@ impl FactoryDeriveField {
                 ident,
                 ty,
                 belongs_to,
-                ..
+                into,
+                mixin: _,
+                dependant: _,
             } = self;
             match belongs_to {
                 Some(_) => {
@@ -30,12 +32,21 @@ impl FactoryDeriveField {
                     ));
                 }
                 None => {
-                    return Some(quote::quote!(
-                        pub fn #ident(mut self, #ident: #ty) -> Self {
-                            self.#ident = #ident;
-                            self
-                        }
-                    ));
+                    if *into {
+                        return Some(quote::quote!(
+                            pub fn #ident<INTO_T: Into<#ty>>(mut self, #ident: INTO_T) -> Self {
+                                self.#ident = #ident.into();
+                                self
+                            }
+                        ));
+                    } else {
+                        return Some(quote::quote!(
+                            pub fn #ident(mut self, #ident: #ty) -> Self {
+                                self.#ident = #ident;
+                                self
+                            }
+                        ));
+                    }
                 }
             }
         }

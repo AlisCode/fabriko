@@ -17,6 +17,10 @@ impl FactoryContext for TestContext {
 pub struct CreationMixin {
     pub created_at: Instant,
     pub updated_at: Instant,
+    #[mixin(into)]
+    // There is also support for `into` inside mixins
+    // Same behavior as with factories
+    pub email: String,
 }
 
 impl Default for CreationMixin {
@@ -24,6 +28,7 @@ impl Default for CreationMixin {
         Self {
             created_at: Instant::now(),
             updated_at: Instant::now(),
+            email: "dummy@test.com".into(),
         }
     }
 }
@@ -40,7 +45,7 @@ pub struct Account {
 #[derive(Debug, Factory)]
 #[factory(attributes = "AccountFactoryAttributes")]
 pub struct AccountFactory {
-    email: String,
+    #[factory(into)]
     password: String,
     /// Attributes from the mixin get "magically" injected to the factory
     #[factory(mixin)]
@@ -50,7 +55,6 @@ pub struct AccountFactory {
 impl Default for AccountFactory {
     fn default() -> Self {
         Self {
-            email: "dummy@dummy.com".into(),
             password: "password".into(),
             creation: Default::default(),
         }
@@ -59,7 +63,6 @@ impl Default for AccountFactory {
 
 #[derive(Debug)]
 pub struct AccountFactoryAttributes {
-    pub email: String,
     pub password: String,
     pub creation: CreationMixin,
 }
@@ -72,12 +75,12 @@ impl BuildResource<TestContext> for AccountFactoryAttributes {
         _ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
         let AccountFactoryAttributes {
-            email,
             password,
             creation:
                 CreationMixin {
                     created_at,
                     updated_at,
+                    email,
                 },
         } = self;
         Ok(Account {
@@ -93,7 +96,8 @@ impl BuildResource<TestContext> for AccountFactoryAttributes {
 fn main() {
     let mut cx = TestContext;
     let account: Account = AccountFactory::default()
-        .password("TestPass".to_string())
+        .password("TestPass")
+        .email("my@email.com")
         .created_at(Instant::now())
         .create(&mut cx)
         .expect("Failed to create Account");

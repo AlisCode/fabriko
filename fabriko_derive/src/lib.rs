@@ -14,7 +14,7 @@ pub fn derive_factory(item: TokenStream) -> TokenStream {
     unwrap_errors(token_stream)
 }
 
-#[proc_macro_derive(Mixin)]
+#[proc_macro_derive(Mixin, attributes(mixin))]
 pub fn derive_mixin(item: TokenStream) -> TokenStream {
     let derive_input = syn::parse_macro_input!(item as DeriveInput);
     let token_stream = do_derive_mixin(&derive_input);

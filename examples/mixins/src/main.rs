@@ -1,4 +1,4 @@
-use fabriko::{BuildResource, Factory, FactoryContext, Mixin};
+use fabriko::{BuildResource, Factory, FactoryBundle, FactoryContext, Mixin};
 use std::time::Instant;
 
 struct TestContext;
@@ -93,6 +93,16 @@ impl BuildResource<TestContext> for AccountFactoryAttributes {
     }
 }
 
+// FactoryBundle also supports setting attributes defined in Mixins !
+// Just import the Mixin trait in your file, and you're all set.
+#[derive(Debug, FactoryBundle)]
+struct MyTestSetup {
+    #[bundle(factory = "AccountFactory", attributes(email = "\"alice@test.com\"", created_at = Instant::now()))]
+    alice: Account,
+    #[bundle(factory = "AccountFactory", attributes(email = "\"bob@test.com\""))]
+    bob: Account,
+}
+
 fn main() {
     let mut cx = TestContext;
     let account: Account = AccountFactory::default()
@@ -102,4 +112,8 @@ fn main() {
         .create(&mut cx)
         .expect("Failed to create Account");
     dbg!(account);
+
+    let MyTestSetup { alice, bob } =
+        MyTestSetup::create_bundle(&mut cx).expect("Failed to create MyTestSetup");
+    dbg!(alice, bob);
 }

@@ -1,30 +1,9 @@
 use crate::factory::{Factory, FactoryContext};
+use crate::BelongingTo;
 
-use crate::associations::belongs_to::BelongingTo;
 use crate::tuple_hack::AppendTuple;
 
-#[derive(Debug, Default)]
-pub struct HasMany<F>(Vec<F>);
-
-pub trait CreateHasMany<CTX: FactoryContext, R> {
-    type Output;
-    fn create_has_many(self, ctx: &mut CTX, resource: &R) -> Result<Vec<Self::Output>, CTX::Error>;
-}
-
-impl<CTX, F, R> CreateHasMany<CTX, R> for HasMany<F>
-where
-    CTX: FactoryContext,
-    F: Factory<CTX> + BelongingTo<R>,
-{
-    type Output = <F as Factory<CTX>>::Output;
-    fn create_has_many(self, ctx: &mut CTX, resource: &R) -> Result<Vec<Self::Output>, CTX::Error> {
-        self.0
-            .into_iter()
-            .map(|factory| factory.belonging_to(resource).create(ctx))
-            .collect()
-    }
-}
-
+/// TODO: Documentation
 pub struct FactoryWithResources<F, R> {
     pub factory: F,
     pub resources: R,
@@ -33,7 +12,7 @@ pub struct FactoryWithResources<F, R> {
 impl<CTX: FactoryContext, F, R> Factory<CTX> for FactoryWithResources<F, R>
 where
     F: Factory<CTX>,
-    R: BelongingTo<<F as Factory<CTX>>::Output> + Factory<CTX>,
+    R: Factory<CTX> + BelongingTo<<F as Factory<CTX>>::Output>,
 {
     type Output = (<F as Factory<CTX>>::Output, <R as Factory<CTX>>::Output);
 

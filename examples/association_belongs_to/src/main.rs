@@ -1,5 +1,6 @@
 use fabriko::{
-    BelongingTo, BelongsTo, BuildResource, Factory, FactoryContext, WithRelatedResources,
+    BelongingToLink, BelongsTo, BuildResource, Factory, FactoryContext, WithIdentifier,
+    WithRelatedResources,
 };
 
 #[derive(Debug, Default)]
@@ -33,12 +34,25 @@ pub struct Todo {
     todo_group_id: i32,
 }
 
-#[derive(Debug)]
-#[allow(dead_code)] // Because we're not doing anything with those models
-pub struct TodoGroup {
-    id: i32,
-    title: String,
+impl WithIdentifier for Todo {
+    type ID = i32;
+    fn extract_id(&self) -> Self::ID {
+        self.id
+    }
 }
+
+/*
+ * Ideally:
+#[derive(Debug, Factory)]
+#[factory(factory = "TodoFactory")]
+pub struct TodoDefinition {
+    #[factory(into)]
+    title: String,
+    done: bool,
+    #[factory(belongs_to(factory = "TodoGroupFactory"))]
+    todo_group: i32,
+}
+*/
 
 #[derive(Default, Factory)]
 #[factory(attributes = "TodoFactoryAttributes")]
@@ -46,14 +60,21 @@ pub struct TodoFactory {
     #[factory(into)]
     title: String,
     done: bool,
-    #[factory(belongs_to(ty = "TodoGroup", field = "id", id_ty = "i32"))]
+    #[factory(belongs_to(factory = "TodoGroupFactory", id_ty = "i32"))]
     todo_group: BelongsTo<TodoGroupFactory, i32>,
 }
 
-impl BelongingTo<TodoGroup> for TodoFactory {
-    fn belonging_to(mut self, resource: &TodoGroup) -> Self {
-        self.todo_group = BelongsTo::Created(resource.id);
-        self
+#[derive(Debug)]
+#[allow(dead_code)] // Because we're not doing anything with those models
+pub struct TodoGroup {
+    id: i32,
+    title: String,
+}
+
+impl WithIdentifier for TodoGroup {
+    type ID = i32;
+    fn extract_id(&self) -> Self::ID {
+        self.id
     }
 }
 
@@ -84,9 +105,20 @@ impl BuildResource<TestContext> for TodoFactoryAttributes {
     }
 }
 
+/*
+ * Ideally:
+#[derive(Debug, Factory)]
+#[factory(factory = "TodoGroupFactory")]
+#[factory(has_many(factory = "TodoFactory", setter = "todo_group", name = "todo"))]
+pub struct TodoGroupDefinition {
+    #[factory(into)]
+    title: String,
+}
+*/
+
 #[derive(Default, Factory)]
 #[factory(attributes = "TodoGroupFactoryAttributes")]
-#[factory(has_many(factory = "TodoFactory", name = "todo"))]
+#[factory(has_many(factory = "TodoFactory", setter = "todo_group", name = "todo"))]
 pub struct TodoGroupFactory {
     #[factory(into)]
     title: String,

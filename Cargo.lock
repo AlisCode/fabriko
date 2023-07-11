@@ -63,6 +63,7 @@ name = "fabriko_derive"
 version = "0.1.0"
 dependencies = [
  "darling",
+ "fnv",
  "proc-macro2",
  "quote",
  "syn",

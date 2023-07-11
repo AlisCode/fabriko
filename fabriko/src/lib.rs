@@ -7,11 +7,14 @@ mod mixins;
 mod tuple_hack;
 
 pub use associations::{
-    belongs_to::{BelongingTo, BelongsTo, BelongsToInfo, CreateBelongingTo},
-    has_many::{CreateHasMany, FactoryWithResources, HasMany, WithRelatedResources},
+    belongs_to::{BelongingTo, BelongingToLink, BelongsTo, FactoryBelongingTo, ResolveDependency},
+    has_many::{FactoryWithResources, WithRelatedResources},
+    with_identifier::WithIdentifier,
 };
 pub use bundle::FactoryBundle;
 pub use fabriko_derive::{Factory, FactoryBundle, Mixin};
 pub use factory::{BuildResource, Factory, FactoryContext};
 pub use mixins::WithMixin;
 pub use tuple_hack::AppendTuple;
+
+pub type FactorySetter<F, T> = fn(F, T) -> F;

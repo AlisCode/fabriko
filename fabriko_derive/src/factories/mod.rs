@@ -50,12 +50,15 @@ impl FactoryDeriveInput {
         } else {
             TokenStream::default()
         };
+        let belonging_to_link_implementations =
+            self::associations::belongs_to::derive_belonging_to_link_implementations(ident, fields);
 
         Ok(quote::quote! {
             #mixin_implementations
             #setter_implementations
             #factory_implementation
             #associated_resources_definition_and_implementation
+            #belonging_to_link_implementations
         })
     }
 }
@@ -92,7 +95,7 @@ fn derive_factory_implementation(
                 } = self;
 
                 // Resolves associations
-                use ::fabriko::CreateBelongingTo;
+                use ::fabriko::ResolveDependency;
                 #associations_pre_create
 
                 // Reassigns dependant attributes

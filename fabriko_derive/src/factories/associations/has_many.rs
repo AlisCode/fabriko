@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use syn::{Ident, Path};
@@ -9,35 +11,100 @@ pub(crate) struct HasManyAssociation {
     #[darling(rename = "factory")]
     for_factory: Path,
     name: Ident,
+    setter: Ident,
 }
 
 impl HasManyAssociation {
     /// TODO: this function and derive_fn_implementation can be factored
     fn derive_fn_definition(&self, factory_ident: &Ident) -> TokenStream {
-        let HasManyAssociation { for_factory, name } = self;
+        let HasManyAssociation {
+            for_factory,
+            name,
+            setter,
+        } = self;
         let fn_ident = Ident::new(&format!("with_{name}"), name.span());
+
+        let mut hasher = fnv::FnvHasher::default();
+        setter.to_string().hash(&mut hasher);
+        let hash_setter_name = hasher.finish();
+
         quote::quote! {
             fn #fn_ident<F: FnOnce(#for_factory) -> #for_factory>(
                 self,
                 func: F,
-            ) -> ::fabriko::FactoryWithResources<#factory_ident, <Self::R as ::fabriko::AppendTuple>::Output<#for_factory>>;
+            ) -> ::fabriko::FactoryWithResources<
+                #factory_ident,
+                <Self::R as ::fabriko::AppendTuple>::Output<
+                    // Ensure field #name is a link
+                    ::fabriko::FactoryBelongingTo<{ #hash_setter_name }, #for_factory>,
+                >,
+            >;
         }
     }
 
     /// TODO: this function and derive_fn_definition can be factored
     fn derive_fn_implementation(&self, factory_ident: &Ident) -> TokenStream {
-        let HasManyAssociation { for_factory, name } = self;
+        let HasManyAssociation {
+            for_factory,
+            name,
+            setter,
+        } = self;
         let fn_ident = Ident::new(&format!("with_{name}"), name.span());
+
+        let mut hasher = fnv::FnvHasher::default();
+        setter.to_string().hash(&mut hasher);
+        let hash_setter_name = hasher.finish();
+
         quote::quote! {
             fn #fn_ident<F: FnOnce(#for_factory) -> #for_factory>(
                 self,
                 func: F,
-            ) -> ::fabriko::FactoryWithResources<#factory_ident, <Self::R as ::fabriko::AppendTuple>::Output<#for_factory>> {
-                self.with_resource(func(#for_factory::default()))
+            ) -> ::fabriko::FactoryWithResources<
+                #factory_ident,
+                <Self::R as ::fabriko::AppendTuple>::Output<
+                    // Ensure field #name is a link
+                    ::fabriko::FactoryBelongingTo<{ #hash_setter_name }, #for_factory>,
+                >,
+            > {
+                let factory = func(#for_factory::default());
+                let factory = ::fabriko::FactoryBelongingTo { factory };
+                self.with_resource(factory)
             }
         }
     }
 }
+
+/*
+ impl fabriko::WithRelatedResources for TodoGroupFactory {}
+pub trait TodoGroupFactoryAssociatedResources<R: fabriko::AppendTuple> {
+    fn with_todo<F: FnOnce(TodoFactory) -> TodoFactory>(
+        self,
+        func: F,
+    ) -> ::fabriko::FactoryWithResources<
+        TodoGroupFactory,
+        <R as ::fabriko::AppendTuple>::Output<
+            ::fabriko::FactoryBelongingTo<{ TODO_GROUP }, TodoFactory>,
+        >,
+    >;
+}
+impl<R: ::fabriko::AppendTuple> TodoGroupFactoryAssociatedResources<R>
+    for ::fabriko::FactoryWithResources<TodoGroupFactory, R>
+{
+    fn with_todo<F: FnOnce(TodoFactory) -> TodoFactory>(
+        self,
+        func: F,
+    ) -> ::fabriko::FactoryWithResources<
+        TodoGroupFactory,
+        <R as ::fabriko::AppendTuple>::Output<
+            ::fabriko::FactoryBelongingTo<{ TODO_GROUP }, TodoFactory>,
+        >,
+    > {
+        let factory = func(TodoFactory::default());
+        let factory = FactoryBelongingTo { factory };
+        self.with_resource(factory)
+    }
+}
+ */
 
 pub(crate) fn derive_factory_associated_resources_and_implementation(
     factory_ident: &Ident,

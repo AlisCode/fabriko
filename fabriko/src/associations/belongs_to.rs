@@ -1,6 +1,7 @@
 use crate::{
     factory::{Factory, FactoryContext},
     tuple_hack::UnitTuple,
+    FactorySetter, WithIdentifier,
 };
 
 #[derive(Debug)]
@@ -9,20 +10,57 @@ pub enum BelongsTo<F, ID> {
     Created(ID),
 }
 
-/// A helper for procedural macros
-pub trait BelongsToInfo {
-    type Factory;
-    type ID;
-}
-
-impl<F, ID> BelongsToInfo for BelongsTo<F, ID> {
-    type Factory = F;
-    type ID = ID;
-}
-
 impl<F: Default, ID> Default for BelongsTo<F, ID> {
     fn default() -> Self {
         BelongsTo::Create(F::default())
+    }
+}
+
+pub trait ResolveDependency<CTX: FactoryContext> {
+    type Output;
+    fn resolve_dependency(self, cx: &mut CTX) -> Result<Self::Output, CTX::Error>;
+}
+
+impl<CTX: FactoryContext, F: Factory<CTX>, ID> ResolveDependency<CTX> for BelongsTo<F, ID>
+where
+    <F as Factory<CTX>>::Output: WithIdentifier<ID = ID>,
+{
+    type Output = ID;
+    fn resolve_dependency(self, cx: &mut CTX) -> Result<Self::Output, CTX::Error> {
+        let id = match self {
+            BelongsTo::Create(factory) => factory.create(cx)?.extract_id(),
+            BelongsTo::Created(id) => id,
+        };
+        Ok(id)
+    }
+}
+
+pub trait BelongingToLink<const N: u64> {
+    type ID;
+    const SETTER: FactorySetter<Self, Self::ID>;
+}
+
+pub struct FactoryBelongingTo<const N: u64, F> {
+    pub factory: F,
+}
+
+impl<const N: u64, R: WithIdentifier, F: BelongingToLink<N, ID = <R as WithIdentifier>::ID>>
+    BelongingTo<R> for FactoryBelongingTo<N, F>
+{
+    fn belonging_to(self, resource: &R) -> Self {
+        let FactoryBelongingTo { factory } = self;
+        let factory = BelongingToLink::<{ N }>::SETTER(factory, resource.extract_id());
+        FactoryBelongingTo { factory }
+    }
+}
+
+impl<const N: u64, CTX: FactoryContext, F: Factory<CTX>> Factory<CTX>
+    for FactoryBelongingTo<{ N }, F>
+{
+    type Output = <F as Factory<CTX>>::Output;
+
+    fn create(self, ctx: &mut CTX) -> Result<Self::Output, <CTX as FactoryContext>::Error> {
+        self.factory.create(ctx)
     }
 }
 
@@ -67,35 +105,3 @@ impl_belonging_to_tuple!(A, B, C, D, E, F, G, H, I);
 impl_belonging_to_tuple!(A, B, C, D, E, F, G, H, I, J);
 impl_belonging_to_tuple!(A, B, C, D, E, F, G, H, I, J, K);
 impl_belonging_to_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
-
-pub trait CreateBelongingTo<CTX: FactoryContext> {
-    type FactoryOutput;
-    type ID;
-    fn create_belonging_to<E: FnOnce(Self::FactoryOutput) -> Self::ID>(
-        self,
-        ctx: &mut CTX,
-        extract: E,
-    ) -> Result<Self::ID, CTX::Error>;
-}
-
-impl<CTX, F, ID> CreateBelongingTo<CTX> for BelongsTo<F, ID>
-where
-    CTX: FactoryContext,
-    F: Factory<CTX>,
-{
-    type FactoryOutput = F::Output;
-    type ID = ID;
-    fn create_belonging_to<E: FnOnce(Self::FactoryOutput) -> ID>(
-        self,
-        ctx: &mut CTX,
-        extract: E,
-    ) -> Result<Self::ID, <CTX as FactoryContext>::Error> {
-        match self {
-            BelongsTo::Create(factory) => {
-                let resource = factory.create(ctx)?;
-                Ok(extract(resource))
-            }
-            BelongsTo::Created(id) => Ok(id),
-        }
-    }
-}

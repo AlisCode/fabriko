@@ -16,25 +16,17 @@ impl FactoryDeriveField {
                 dependant: _,
             } = self;
             match belongs_to {
-                Some(_) => {
-                    let ident = ident.as_ref().expect("Only named structs are supported");
-                    let setter_belonging_to =
-                        Ident::new(&format!("belonging_to_{}", ident), ident.span());
-                    return Some(quote::quote!(
-                        pub fn #setter_belonging_to<F: FnOnce(<#ty as ::fabriko::BelongsToInfo>::Factory) -> <#ty as ::fabriko::BelongsToInfo>::Factory>(mut self, f: F) -> Self {
-                            self.#ident = ::fabriko::BelongsTo::Create(f(Default::default()));
-                            self
-                        }
-                        pub fn #ident(mut self, id: <#ty as ::fabriko::BelongsToInfo>::ID) -> Self {
-                            self.#ident = ::fabriko::BelongsTo::Created(id);
-                            self
-                        }
-                    ));
+                Some(belongs_to) => {
+                    return Some(
+                        super::associations::belongs_to::declare_fields_belonging_to(
+                            belongs_to, ident,
+                        ),
+                    );
                 }
                 None => {
                     if *into {
                         return Some(quote::quote!(
-                            pub fn #ident<INTO_T: Into<#ty>>(mut self, #ident: INTO_T) -> Self {
+                            pub fn #ident<T: Into<#ty>>(mut self, #ident: T) -> Self {
                                 self.#ident = #ident.into();
                                 self
                             }

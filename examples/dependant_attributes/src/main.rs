@@ -5,23 +5,6 @@ impl FactoryContext for TestContext {
     type Error = ();
 }
 
-#[derive(Debug, Default, Factory)]
-#[factory(attributes = "UserFactoryAttributes")]
-pub struct UserFactory {
-    #[factory(into)]
-    firstname: String,
-    #[factory(into)]
-    lastname: String,
-    #[factory(into, dependant = format!("{firstname}.{lastname}@test.com"))]
-    email: String,
-}
-
-pub struct UserFactoryAttributes {
-    firstname: String,
-    lastname: String,
-    email: String,
-}
-
 #[derive(Debug)]
 pub struct User {
     firstname: String,
@@ -40,11 +23,22 @@ impl User {
     }
 }
 
-impl BuildResource<TestContext> for UserFactoryAttributes {
+#[derive(Debug, Factory)]
+#[factory(factory = "UserFactory")]
+pub struct UserDefinition {
+    #[factory(into, default = "\"Alice\".into()")]
+    firstname: String,
+    #[factory(into, default = "\"Cooper\".into()")]
+    lastname: String,
+    #[factory(into, dependant = format!("{firstname}.{lastname}@test.com"))]
+    email: String,
+}
+
+impl BuildResource<TestContext> for UserDefinition {
     type Output = User;
 
     fn build_resource(self, _ctx: &mut TestContext) -> Result<Self::Output, ()> {
-        let UserFactoryAttributes {
+        let UserDefinition {
             firstname,
             lastname,
             email,
@@ -59,10 +53,19 @@ impl BuildResource<TestContext> for UserFactoryAttributes {
 
 fn main() {
     let mut cx = TestContext;
-    let user: User = UserFactory::default()
-        .firstname("Alice")
-        .lastname("Cooper")
+    let alice = UserFactory::default()
         .create(&mut cx)
-        .expect("Failed to create user");
-    println!("{}", user.description());
+        .expect("Failed to create alice");
+    let alice_description = alice.description();
+    println!("{alice_description}");
+    assert_eq!(alice_description, "Alice Cooper <Alice.Cooper@test.com>");
+
+    let bob: User = UserFactory::default()
+        .firstname("Bob")
+        .lastname("Marley")
+        .create(&mut cx)
+        .expect("Failed to create bob");
+    let bob_description = bob.description();
+    println!("{bob_description}");
+    assert_eq!(bob.description(), "Bob Marley <Bob.Marley@test.com>");
 }

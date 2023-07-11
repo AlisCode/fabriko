@@ -43,38 +43,23 @@ pub struct Account {
 }
 
 #[derive(Debug, Factory)]
-#[factory(attributes = "AccountFactoryAttributes")]
-pub struct AccountFactory {
-    #[factory(into)]
+#[factory(factory = "AccountFactory")]
+pub struct AccountDefinition {
+    #[factory(into, default = "S3kUr3_P@sSw0rd".into())]
     password: String,
     /// Attributes from the mixin get "magically" injected to the factory
     #[factory(mixin)]
     creation: CreationMixin,
 }
 
-impl Default for AccountFactory {
-    fn default() -> Self {
-        Self {
-            password: "password".into(),
-            creation: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct AccountFactoryAttributes {
-    pub password: String,
-    pub creation: CreationMixin,
-}
-
-impl BuildResource<TestContext> for AccountFactoryAttributes {
+impl BuildResource<TestContext> for AccountDefinition {
     type Output = Account;
 
     fn build_resource(
         self,
         _ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
-        let AccountFactoryAttributes {
+        let AccountDefinition {
             password,
             creation:
                 CreationMixin {

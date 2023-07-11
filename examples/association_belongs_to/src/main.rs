@@ -1,5 +1,5 @@
 use fabriko::{
-    BelongingToLink, BelongsTo, BuildResource, Factory, FactoryContext, WithIdentifier,
+    BelongingToLink, BuildResource, Factory, FactoryBundle, FactoryContext, WithIdentifier,
     WithRelatedResources,
 };
 
@@ -41,27 +41,35 @@ impl WithIdentifier for Todo {
     }
 }
 
-/*
- * Ideally:
 #[derive(Debug, Factory)]
 #[factory(factory = "TodoFactory")]
 pub struct TodoDefinition {
-    #[factory(into)]
+    #[factory(into, default = "\"My Todo\".to_string()")]
     title: String,
     done: bool,
     #[factory(belongs_to(factory = "TodoGroupFactory"))]
     todo_group: i32,
 }
-*/
 
-#[derive(Default, Factory)]
-#[factory(attributes = "TodoFactoryAttributes")]
-pub struct TodoFactory {
-    #[factory(into)]
-    title: String,
-    done: bool,
-    #[factory(belongs_to(factory = "TodoGroupFactory", id_ty = "i32"))]
-    todo_group: BelongsTo<TodoGroupFactory, i32>,
+impl BuildResource<TestContext> for TodoDefinition {
+    type Output = Todo;
+
+    fn build_resource(
+        self,
+        ctx: &mut TestContext,
+    ) -> Result<Self::Output, <TestContext as fabriko::FactoryContext>::Error> {
+        let TodoDefinition {
+            title,
+            done,
+            todo_group: todo_group_id,
+        } = self;
+        Ok(Todo {
+            id: ctx.next_todo_id(),
+            title,
+            done,
+            todo_group_id,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -78,35 +86,6 @@ impl WithIdentifier for TodoGroup {
     }
 }
 
-pub struct TodoFactoryAttributes {
-    title: String,
-    done: bool,
-    todo_group: i32,
-}
-
-impl BuildResource<TestContext> for TodoFactoryAttributes {
-    type Output = Todo;
-
-    fn build_resource(
-        self,
-        ctx: &mut TestContext,
-    ) -> Result<Self::Output, <TestContext as fabriko::FactoryContext>::Error> {
-        let TodoFactoryAttributes {
-            title,
-            done,
-            todo_group: todo_group_id,
-        } = self;
-        Ok(Todo {
-            id: ctx.next_todo_id(),
-            title,
-            done,
-            todo_group_id,
-        })
-    }
-}
-
-/*
- * Ideally:
 #[derive(Debug, Factory)]
 #[factory(factory = "TodoGroupFactory")]
 #[factory(has_many(factory = "TodoFactory", setter = "todo_group", name = "todo"))]
@@ -114,33 +93,40 @@ pub struct TodoGroupDefinition {
     #[factory(into)]
     title: String,
 }
-*/
 
-#[derive(Default, Factory)]
-#[factory(attributes = "TodoGroupFactoryAttributes")]
-#[factory(has_many(factory = "TodoFactory", setter = "todo_group", name = "todo"))]
-pub struct TodoGroupFactory {
-    #[factory(into)]
-    title: String,
-}
-
-pub struct TodoGroupFactoryAttributes {
-    title: String,
-}
-
-impl BuildResource<TestContext> for TodoGroupFactoryAttributes {
+impl BuildResource<TestContext> for TodoGroupDefinition {
     type Output = TodoGroup;
 
     fn build_resource(
         self,
         ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
-        let TodoGroupFactoryAttributes { title } = self;
+        let TodoGroupDefinition { title } = self;
         Ok(TodoGroup {
             id: ctx.next_todo_group_id(),
             title,
         })
     }
+}
+
+// When you want to share the same test setup between various tests, you can create
+// your own FactoryBundle to reduce the boilerplate to a bare minimum.
+//
+// See the example below.
+#[derive(Debug, FactoryBundle)]
+pub struct MyTestBundle {
+    #[bundle(factory = "TodoGroupFactory", attributes(title = "\"Todo Group\""))]
+    todo_group: TodoGroup,
+    #[bundle(
+        factory = "TodoFactory",
+        attributes(title = "\"Todo One\"", todo_group = "todo_group.id")
+    )]
+    todo_one: Todo,
+    #[bundle(
+        factory = "TodoFactory",
+        attributes(title = "\"Todo Two\"", todo_group = "todo_group.id")
+    )]
+    todo_two: Todo,
 }
 
 fn main() {
@@ -190,6 +176,16 @@ fn main() {
         .create(&mut cx)
         .expect("Failed to create tg and todo_in_tg");
     dbg!(tg);
+    dbg!(todo_one);
+    dbg!(todo_two);
+
+    // You can also use bundles to create the container, and the two todos belonging to it
+    let MyTestBundle {
+        todo_group,
+        todo_one,
+        todo_two,
+    } = MyTestBundle::create_bundle(&mut cx).expect("Failed to create test setup");
+    dbg!(todo_group);
     dbg!(todo_one);
     dbg!(todo_two);
 

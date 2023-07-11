@@ -14,6 +14,7 @@ impl FactoryDeriveField {
                 into,
                 mixin: _,
                 dependant: _,
+                default: _,
             } = self;
             match belongs_to {
                 Some(belongs_to) => {

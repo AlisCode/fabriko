@@ -19,6 +19,9 @@ pub(crate) struct FactoryDeriveField {
     /// T is the factory field's type
     pub(crate) into: bool,
     pub(crate) dependant: Option<Expr>,
+    /// TODO: dependant and default are mutually exclusive
+    /// TODO: belongs_to and default are mutually exclusive
+    pub(crate) default: Option<Expr>,
     pub(crate) belongs_to: Option<BelongsToAssociation>,
 }
 
@@ -82,7 +85,10 @@ pub(crate) fn reassign_dependant_attributes(fields: &Fields<FactoryDeriveField>)
                  ident,
                  ty,
                  dependant,
-                 ..
+                 mixin: _,
+                 into: _,
+                 default: _,
+                 belongs_to: _,
              }| {
                 dependant.as_ref().map(|expr| {
                     quote::quote!(

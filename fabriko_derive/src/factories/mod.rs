@@ -3,7 +3,7 @@ use darling::{
     FromDeriveInput,
 };
 use proc_macro2::TokenStream;
-use syn::{DeriveInput, Ident, Path};
+use syn::{DeriveInput, Ident};
 
 use self::associations::has_many::HasManyAssociation;
 use self::field::FactoryDeriveField;
@@ -21,7 +21,8 @@ mod setters;
 struct FactoryDeriveInput {
     ident: Ident,
     data: Data<darling::util::Ignored, field::FactoryDeriveField>,
-    attributes: Path,
+    #[darling(rename = "factory")]
+    factory_ident: Ident,
     #[darling(multiple)]
     has_many: Vec<HasManyAssociation>,
 }
@@ -29,9 +30,9 @@ struct FactoryDeriveInput {
 impl FactoryDeriveInput {
     pub fn derive(&self) -> darling::Result<TokenStream> {
         let FactoryDeriveInput {
-            ident,
+            ident: attributes_ident,
             data,
-            attributes,
+            factory_ident,
             has_many,
         } = self;
         let fields = match data {
@@ -39,33 +40,102 @@ impl FactoryDeriveInput {
             Data::Struct(fields) => fields,
         };
 
-        let mixin_implementations = self::mixins::derive_mixin_implementations(ident, fields)?;
-        let setter_implementations = self::setters::derive_setters_implementations(ident, fields)?;
-        let factory_implementation = derive_factory_implementation(ident, attributes, fields)?;
+        let mixin_implementations =
+            self::mixins::derive_mixin_implementations(factory_ident, fields)?;
+        let setter_implementations =
+            self::setters::derive_setters_implementations(factory_ident, fields)?;
+        let factory_definition = derive_factory_definition(factory_ident, fields);
+        let factory_implementation =
+            derive_factory_implementation(attributes_ident, factory_ident, fields)?;
         // We don't need the code for associated resources if we don't have any
         let associated_resources_definition_and_implementation = if !has_many.is_empty() {
             self::associations::has_many::derive_factory_associated_resources_and_implementation(
-                ident, has_many,
+                factory_ident,
+                has_many,
             )?
         } else {
             TokenStream::default()
         };
         let belonging_to_link_implementations =
-            self::associations::belongs_to::derive_belonging_to_link_implementations(ident, fields);
+            self::associations::belongs_to::derive_belonging_to_link_implementations(
+                factory_ident,
+                fields,
+            );
 
         Ok(quote::quote! {
+            #factory_definition
+            #factory_implementation
             #mixin_implementations
             #setter_implementations
-            #factory_implementation
             #associated_resources_definition_and_implementation
             #belonging_to_link_implementations
         })
     }
 }
 
-fn derive_factory_implementation(
+fn derive_factory_definition(
     factory_ident: &Ident,
-    attributes_ty_path: &Path,
+    fields: &Fields<FactoryDeriveField>,
+) -> TokenStream {
+    let factory_fields: TokenStream = fields
+        .iter()
+        .map(
+            |FactoryDeriveField {
+                 ident,
+                 ty,
+                 mixin: _,
+                 into: _,
+                 dependant: _,
+                 belongs_to,
+                 default: _,
+             }| {
+                let ident = ident.as_ref().expect("Only named structs are supported");
+                match belongs_to {
+                    Some(belongs_to) => belongs_to.field_definition(ident, ty),
+                    None => quote::quote!(#ident: #ty,),
+                }
+            },
+        )
+        .collect();
+    // TODO: split to own module ?
+    let factory_default_fields: TokenStream = fields
+        .iter()
+        .map(
+            |FactoryDeriveField {
+                 ident,
+                 ty: _,
+                 mixin: _,
+                 into: _,
+                 dependant: _,
+                 belongs_to: _,
+                 default,
+             }| {
+                let ident = ident.as_ref().expect("Only named structs are supported");
+                match default {
+                    Some(expr) => quote::quote!(#ident: #expr,),
+                    None => quote::quote!(#ident: Default::default(),),
+                }
+            },
+        )
+        .collect();
+    quote::quote!(
+        pub struct #factory_ident {
+            #factory_fields
+        }
+
+        impl Default for #factory_ident {
+            fn default() -> Self {
+                #factory_ident {
+                    #factory_default_fields
+                }
+            }
+        }
+    )
+}
+
+fn derive_factory_implementation(
+    attributes_ident: &Ident,
+    factory_ident: &Ident,
     fields: &Fields<FactoryDeriveField>,
 ) -> darling::Result<TokenStream> {
     let mut impl_block_conditions: Vec<TokenStream> = Vec::new();
@@ -79,14 +149,14 @@ fn derive_factory_implementation(
     let reassign_dependant_attributes = self::field::reassign_dependant_attributes(fields);
     let destructured_attributes_fields = self::field::destructure_attributes_fields(fields);
 
-    impl_block_conditions.push(quote::quote!(#attributes_ty_path: ::fabriko::BuildResource<CTX>,));
+    impl_block_conditions.push(quote::quote!(#attributes_ident: ::fabriko::BuildResource<CTX>,));
     let where_clause: TokenStream = impl_block_conditions.into_iter().collect();
     Ok(quote::quote! {
         impl<CTX: ::fabriko::FactoryContext> ::fabriko::Factory<CTX> for #factory_ident
         where
             #where_clause
         {
-            type Output = <#attributes_ty_path as BuildResource<CTX>>::Output;
+            type Output = <#attributes_ident as ::fabriko::BuildResource<CTX>>::Output;
 
             fn create(self, ctx: &mut CTX) -> Result<Self::Output, CTX::Error> {
                 let #factory_ident {
@@ -102,7 +172,7 @@ fn derive_factory_implementation(
                 #reassign_dependant_attributes
 
                 // Build resource
-                let __resource = #attributes_ty_path {
+                let __resource = #attributes_ident {
                     #destructured_attributes_fields
                 }
                 .build_resource(ctx)?;

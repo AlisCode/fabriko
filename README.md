@@ -1,7 +1,7 @@
 # Fabriko
 
-Easy factories for your test fixtures.
-Inspired by `factory_bot`, but all in safe Rust.
+A Rust library to easily write safe and flexible factories for your test fixtures.
+Inspired by Ruby's `factory_bot`, but all in safe Rust.
 Flexible so you can use it too.
 
 Supports:
@@ -14,8 +14,7 @@ Supports:
 
 ### v0.1
 
-* "Context wrapper" to erase the need to mutably borrow & provide the context everytime
-* "Factory registry" (linked to the context wrapper)
+* One-to-one relationship
 * Documentation - most importantly for the core crate `fabriko`
 * Proc Macro for `WithIdentifier`
 * Cleanup
@@ -30,4 +29,7 @@ Supports:
 
 ### v0.2
 
+* Diesel integration (?)
 * Async
+    * SQLx integration (?)
+* Bevy integration (?)

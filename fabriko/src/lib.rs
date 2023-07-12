@@ -2,6 +2,7 @@ extern crate fabriko_derive;
 
 mod associations;
 mod bundle;
+mod context;
 mod factory;
 mod mixins;
 mod tuple_hack;
@@ -12,7 +13,8 @@ pub use associations::{
     with_identifier::WithIdentifier,
 };
 pub use bundle::FactoryBundle;
-pub use fabriko_derive::{Factory, FactoryBundle, Mixin};
+pub use context::Fabriko;
+pub use fabriko_derive::{Fabriko, Factory, FactoryBundle, Mixin};
 pub use factory::{BuildResource, Factory, FactoryContext};
 pub use mixins::WithMixin;
 pub use tuple_hack::AppendTuple;

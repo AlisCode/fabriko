@@ -1,5 +1,5 @@
 [package]
-name = "association_belongs_to"
+name = "associations"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 fabriko = { path = "../../fabriko" }
+nutype = "0.3"

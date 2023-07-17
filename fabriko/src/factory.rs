@@ -17,6 +17,14 @@ impl<CTX: FactoryContext, F: Factory<CTX>> Factory<CTX> for UnitTuple<F> {
     }
 }
 
+impl<CTX: FactoryContext, F: Factory<CTX> + std::any::Any> Factory<CTX> for Box<F> {
+    type Output = F::Output;
+
+    fn create(self, ctx: &mut CTX) -> Result<Self::Output, <CTX as FactoryContext>::Error> {
+        (*self).create(ctx)
+    }
+}
+
 macro_rules! impl_factory_tuple {
     ($($T:ident),*) => {
         impl<CTX: FactoryContext, $($T: Factory<CTX>),*> Factory<CTX> for ($($T),*) {

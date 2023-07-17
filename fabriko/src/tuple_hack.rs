@@ -1,3 +1,4 @@
+//! Probably remove ?
 //! A workaround to have a tuple and append types inside of it while avoiding nesting
 
 pub struct UnitTuple<T>(pub(crate) T);

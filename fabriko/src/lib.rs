@@ -8,9 +8,12 @@ mod mixins;
 mod tuple_hack;
 
 pub use associations::{
-    belongs_to::{BelongingTo, BelongingToLink, BelongsTo, FactoryBelongingTo, ResolveDependency},
-    has_many::{FactoryWithResources, WithRelatedResources},
+    belongs_to::{BelongingTo, BelongingToLink, BelongsTo, FactoryBelongingTo},
+    default::DefaultAssociation,
+    has_many::{FactoryWithResources, HasMany, WithRelatedResources},
+    has_one::HasOne,
     with_identifier::WithIdentifier,
+    ResolveDependency,
 };
 pub use bundle::FactoryBundle;
 pub use context::Fabriko;

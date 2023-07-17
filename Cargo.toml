@@ -1,2 +1,2 @@
 [workspace]
-members = ["fabriko", "fabriko_derive", "examples/*"]
+members = ["fabriko", "fabriko_derive", "examples/association_one_to_one"]

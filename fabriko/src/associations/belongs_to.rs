@@ -4,6 +4,8 @@ use crate::{
     FactorySetter, WithIdentifier,
 };
 
+use super::ResolveDependency;
+
 #[derive(Debug)]
 pub enum BelongsTo<F, ID> {
     Create(F),
@@ -14,11 +16,6 @@ impl<F: Default, ID> Default for BelongsTo<F, ID> {
     fn default() -> Self {
         BelongsTo::Create(F::default())
     }
-}
-
-pub trait ResolveDependency<CTX: FactoryContext> {
-    type Output;
-    fn resolve_dependency(self, cx: &mut CTX) -> Result<Self::Output, CTX::Error>;
 }
 
 impl<CTX: FactoryContext, F: Factory<CTX>, ID> ResolveDependency<CTX> for BelongsTo<F, ID>

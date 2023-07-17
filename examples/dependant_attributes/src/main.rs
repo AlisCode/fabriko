@@ -37,7 +37,7 @@ pub struct UserDefinition {
 impl BuildResource<TestContext> for UserDefinition {
     type Output = User;
 
-    fn build_resource(self, _ctx: &mut TestContext) -> Result<Self::Output, ()> {
+    fn create(self, _ctx: &mut TestContext) -> Result<Self::Output, ()> {
         let UserDefinition {
             firstname,
             lastname,

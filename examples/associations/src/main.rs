@@ -35,7 +35,7 @@ pub struct TodoDefinition {
 impl BuildResource<TestContext> for TodoDefinition {
     type Output = Todo;
 
-    fn build_resource(
+    fn create(
         self,
         ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as fabriko::FactoryContext>::Error> {
@@ -64,7 +64,7 @@ pub struct TodoGroupDefinition {
 impl BuildResource<TestContext> for TodoGroupDefinition {
     type Output = TodoGroup;
 
-    fn build_resource(
+    fn create(
         self,
         ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {

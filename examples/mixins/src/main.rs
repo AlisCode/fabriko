@@ -55,7 +55,7 @@ pub struct AccountDefinition {
 impl BuildResource<TestContext> for AccountDefinition {
     type Output = Account;
 
-    fn build_resource(
+    fn create(
         self,
         _ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {

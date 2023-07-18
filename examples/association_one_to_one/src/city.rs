@@ -74,7 +74,11 @@ impl CityFactory {
         self.population = population;
         self
     }
-    pub fn country(mut self, country: CountryId) -> Self {
+    pub fn country<F: FnOnce(CountryFactory) -> CountryFactory>(mut self, func: F) -> Self {
+        self.country = BelongsTo::Create(func(CountryFactory::default()));
+        self
+    }
+    pub fn country_id(mut self, country: CountryId) -> Self {
         self.country = BelongsTo::Created(country);
         self
     }

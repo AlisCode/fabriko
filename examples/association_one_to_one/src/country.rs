@@ -1,6 +1,6 @@
 use fabriko::{
-    BelongingTo, BuildResource, DefaultAssociation, Factory, FactoryContext, HasMany, HasOne,
-    WithIdentifier, WithRelatedResources,
+    BelongingTo, BuildResource, Factory, FactoryContext, HasMany, HasOneCreated, HasOneDefault,
+    HasOneToCreate, WithIdentifier, WithRelatedResources,
 };
 use nutype::nutype;
 
@@ -27,15 +27,16 @@ impl WithIdentifier for Country {
 }
 
 // #[derive(Factory)]
-// #[factory(factory = "CountryFactory")]
+// #[factory(factory = "CountryFactory", associations = "CountryFactoryAssociations")]
 // #[factory(has_many(factory = "CityFactory", setter = "country", name = "cities"))]
-// #[factory(has_one(factory = "CityFactory", name = "capital_city"))]
+// #[factory(has_one(factory = "CityFactory", setter = "country", name = "capital_city"))]
 pub struct CountryDefinition {
     name: String,
 }
 
 impl WithRelatedResources for CountryFactory {
-    type Associations = CountryAssociations<DefaultAssociation<CityFactory>, HasMany<CityFactory>>;
+    type DefaultAssociations =
+        CountryFactoryAssociations<HasOneDefault<CityFactory>, HasMany<CityFactory>>;
 }
 
 #[derive(Default)]
@@ -63,22 +64,22 @@ impl CountryFactory {
 }
 
 #[derive(Default)]
-pub struct CountryAssociations<A, B> {
-    capital_city: A,
-    cities: B,
+pub struct CountryFactoryAssociations<A, B> {
+    pub capital_city: A,
+    pub cities: B,
 }
 
-impl<B> CountryAssociations<DefaultAssociation<CityFactory>, B> {
+impl<B> CountryFactoryAssociations<HasOneDefault<CityFactory>, B> {
     pub fn capital_city_id(
         self,
         city_id: CityId,
-    ) -> CountryAssociations<HasOne<CityFactory, CityId>, B> {
-        let CountryAssociations {
+    ) -> CountryFactoryAssociations<HasOneCreated<CityId>, B> {
+        let CountryFactoryAssociations {
             capital_city: _,
             cities,
         } = self;
-        let capital_city = HasOne::Created(city_id) as HasOne<CityFactory, CityId>;
-        CountryAssociations {
+        let capital_city = HasOneCreated::new(city_id);
+        CountryFactoryAssociations {
             capital_city,
             cities,
         }
@@ -87,38 +88,38 @@ impl<B> CountryAssociations<DefaultAssociation<CityFactory>, B> {
     pub fn capital_city<F: FnOnce(CityFactory) -> CityFactory>(
         self,
         func: F,
-    ) -> CountryAssociations<HasOne<CityFactory, CityId>, B> {
-        let CountryAssociations {
+    ) -> CountryFactoryAssociations<HasOneToCreate<CityFactory>, B> {
+        let CountryFactoryAssociations {
             capital_city: _,
             cities,
         } = self;
-        let capital_city = HasOne::Create(func(Default::default())) as HasOne<CityFactory, CityId>;
-        CountryAssociations {
+        let capital_city = HasOneToCreate::new(func(Default::default()));
+        CountryFactoryAssociations {
             capital_city,
             cities,
         }
     }
 }
 
-impl<A> CountryAssociations<A, HasMany<CityFactory>> {
+impl<A> CountryFactoryAssociations<A, HasMany<CityFactory>> {
     pub fn with_city<F: FnOnce(CityFactory) -> CityFactory>(
         mut self,
         func: F,
-    ) -> CountryAssociations<A, HasMany<CityFactory>> {
+    ) -> CountryFactoryAssociations<A, HasMany<CityFactory>> {
         self.cities = self.cities.with(func);
         self
     }
 }
 
-impl<R, A: BelongingTo<R>, B: BelongingTo<R>> BelongingTo<R> for CountryAssociations<A, B> {
+impl<R, A: BelongingTo<R>, B: BelongingTo<R>> BelongingTo<R> for CountryFactoryAssociations<A, B> {
     fn belonging_to(self, resource: &R) -> Self {
-        let CountryAssociations {
+        let CountryFactoryAssociations {
             capital_city,
             cities,
         } = self;
         let capital_city = capital_city.belonging_to(resource);
         let cities = cities.belonging_to(resource);
-        CountryAssociations {
+        CountryFactoryAssociations {
             capital_city,
             cities,
         }
@@ -126,18 +127,21 @@ impl<R, A: BelongingTo<R>, B: BelongingTo<R>> BelongingTo<R> for CountryAssociat
 }
 
 impl<CTX: FactoryContext, A: Factory<CTX>, B: Factory<CTX>> Factory<CTX>
-    for CountryAssociations<A, B>
+    for CountryFactoryAssociations<A, B>
 {
-    type Output = (A::Output, B::Output);
+    type Output = CountryFactoryAssociations<A::Output, B::Output>;
 
     fn create(self, ctx: &mut CTX) -> Result<Self::Output, <CTX as FactoryContext>::Error> {
-        let CountryAssociations {
+        let CountryFactoryAssociations {
             capital_city,
             cities,
         } = self;
         let capital_city = capital_city.create(ctx)?;
         let cities = cities.create(ctx)?;
-        Ok((capital_city, cities))
+        Ok(CountryFactoryAssociations {
+            capital_city,
+            cities,
+        })
     }
 }
 

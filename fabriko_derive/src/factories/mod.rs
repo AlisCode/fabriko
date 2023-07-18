@@ -5,7 +5,7 @@ use darling::{
 use proc_macro2::TokenStream;
 use syn::{DeriveInput, Ident};
 
-use self::associations::has_many::HasManyAssociation;
+use self::associations::{has_many::HasManyAssociation, has_one::HasOneAssociation};
 use self::field::FactoryDeriveField;
 
 mod associations;
@@ -23,8 +23,12 @@ struct FactoryDeriveInput {
     data: Data<darling::util::Ignored, field::FactoryDeriveField>,
     #[darling(rename = "factory")]
     factory_ident: Ident,
+    #[darling(rename = "associations")]
+    associations_ident: Ident, // TODO: Make Optional
     #[darling(multiple)]
     has_many: Vec<HasManyAssociation>,
+    #[darling(multiple)]
+    has_one: Vec<HasOneAssociation>,
 }
 
 impl FactoryDeriveInput {
@@ -33,10 +37,12 @@ impl FactoryDeriveInput {
             ident: attributes_ident,
             data,
             factory_ident,
+            associations_ident,
             has_many,
+            has_one,
         } = self;
         let fields = match data {
-            Data::Enum(_) => unimplemented!(), // TODO: Proper error
+            Data::Enum(_) => panic!("The only supported mode is struct with named fields"),
             Data::Struct(fields) => fields,
         };
 
@@ -47,15 +53,13 @@ impl FactoryDeriveInput {
         let factory_definition = derive_factory_definition(factory_ident, fields);
         let factory_implementation =
             derive_factory_implementation(attributes_ident, factory_ident, fields)?;
-        // We don't need the code for associated resources if we don't have any
-        let associated_resources_definition_and_implementation = if !has_many.is_empty() {
-            self::associations::has_many::derive_factory_associated_resources_and_implementation(
-                factory_ident,
+        let associated_resources_definition_and_implementation =
+            self::associations::derive_associations(
                 has_many,
-            )?
-        } else {
-            TokenStream::default()
-        };
+                has_one,
+                &associations_ident,
+                factory_ident,
+            );
         let belonging_to_link_implementations =
             self::associations::belongs_to::derive_belonging_to_link_implementations(
                 factory_ident,
@@ -67,8 +71,8 @@ impl FactoryDeriveInput {
             #factory_implementation
             #mixin_implementations
             #setter_implementations
-            #associated_resources_definition_and_implementation
             #belonging_to_link_implementations
+            #associated_resources_definition_and_implementation
         })
     }
 }

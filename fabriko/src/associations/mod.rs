@@ -6,7 +6,7 @@ pub mod belongs_to;
 pub mod factory;
 pub mod has_many;
 pub mod has_one;
-pub mod may_belong_to;
+// pub mod may_belong_to;
 pub mod with_identifier;
 
 pub trait ResolveDependency<CTX: FactoryContext> {

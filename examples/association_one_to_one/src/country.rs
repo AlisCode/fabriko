@@ -1,6 +1,6 @@
 use fabriko::{
     BelongingTo, BuildResource, Factory, FactoryContext, HasMany, HasOneCreated, HasOneDefault,
-    HasOneToCreate, WithIdentifier, WithRelatedResources,
+    HasOneToCreate, WithIdentifier,
 };
 use nutype::nutype;
 
@@ -26,54 +26,37 @@ impl WithIdentifier for Country {
     }
 }
 
-// #[derive(Factory)]
-// #[factory(factory = "CountryFactory", associations = "CountryFactoryAssociations")]
-// #[factory(has_many(factory = "CityFactory", setter = "country", name = "cities"))]
-// #[factory(has_one(factory = "CityFactory", setter = "country", name = "capital_city"))]
+#[derive(Factory)]
+#[factory(
+    factory = "CountryFactory",
+    associations = "CountryFactoryAssociations"
+)]
+#[factory(has_one(factory = "CityFactory", name = "capital_city"))]
+#[factory(has_many(factory = "CityFactory", name = "cities"))]
 pub struct CountryDefinition {
     name: String,
 }
 
-impl WithRelatedResources for CountryFactory {
-    type DefaultAssociations =
-        CountryFactoryAssociations<HasOneDefault<CityFactory>, HasMany<CityFactory>>;
-}
+impl BuildResource<TestContext> for CountryDefinition {
+    type Output = Country;
 
-#[derive(Default)]
-pub struct CountryFactory {
-    name: String,
-}
-
-impl<CTX: ::fabriko::FactoryContext> ::fabriko::Factory<CTX> for CountryFactory
-where
-    CountryDefinition: ::fabriko::BuildResource<CTX>,
-{
-    type Output = <CountryDefinition as ::fabriko::BuildResource<CTX>>::Output;
-    fn create(self, ctx: &mut CTX) -> Result<Self::Output, CTX::Error> {
-        let CountryFactory { name, .. } = self;
-        let __resource = CountryDefinition { name }.build_resource(ctx)?;
-        Ok(__resource)
+    fn build_resource(
+        self,
+        ctx: &mut TestContext,
+    ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
+        let CountryDefinition { name } = self;
+        Ok(Country {
+            id: ctx.next_country_id(),
+            name,
+        })
     }
 }
 
-impl CountryFactory {
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
-        self
-    }
-}
-
-#[derive(Default)]
-pub struct CountryFactoryAssociations<A, B> {
-    pub capital_city: A,
-    pub cities: B,
-}
-
-impl<B> CountryFactoryAssociations<HasOneDefault<CityFactory>, B> {
+impl<A> CountryFactoryAssociations<A, HasOneDefault<CityFactory>> {
     pub fn capital_city_id(
         self,
         city_id: CityId,
-    ) -> CountryFactoryAssociations<HasOneCreated<CityId>, B> {
+    ) -> CountryFactoryAssociations<A, HasOneCreated<CityId>> {
         let CountryFactoryAssociations {
             capital_city: _,
             cities,
@@ -88,7 +71,7 @@ impl<B> CountryFactoryAssociations<HasOneDefault<CityFactory>, B> {
     pub fn capital_city<F: FnOnce(CityFactory) -> CityFactory>(
         self,
         func: F,
-    ) -> CountryFactoryAssociations<HasOneToCreate<CityFactory>, B> {
+    ) -> CountryFactoryAssociations<A, HasOneToCreate<CityFactory>> {
         let CountryFactoryAssociations {
             capital_city: _,
             cities,
@@ -101,28 +84,13 @@ impl<B> CountryFactoryAssociations<HasOneDefault<CityFactory>, B> {
     }
 }
 
-impl<A> CountryFactoryAssociations<A, HasMany<CityFactory>> {
+impl<B> CountryFactoryAssociations<HasMany<CityFactory>, B> {
     pub fn with_city<F: FnOnce(CityFactory) -> CityFactory>(
         mut self,
         func: F,
-    ) -> CountryFactoryAssociations<A, HasMany<CityFactory>> {
+    ) -> CountryFactoryAssociations<HasMany<CityFactory>, B> {
         self.cities = self.cities.with(func);
         self
-    }
-}
-
-impl<R, A: BelongingTo<R>, B: BelongingTo<R>> BelongingTo<R> for CountryFactoryAssociations<A, B> {
-    fn belonging_to(self, resource: &R) -> Self {
-        let CountryFactoryAssociations {
-            capital_city,
-            cities,
-        } = self;
-        let capital_city = capital_city.belonging_to(resource);
-        let cities = cities.belonging_to(resource);
-        CountryFactoryAssociations {
-            capital_city,
-            cities,
-        }
     }
 }
 
@@ -141,21 +109,6 @@ impl<CTX: FactoryContext, A: Factory<CTX>, B: Factory<CTX>> Factory<CTX>
         Ok(CountryFactoryAssociations {
             capital_city,
             cities,
-        })
-    }
-}
-
-impl BuildResource<TestContext> for CountryDefinition {
-    type Output = Country;
-
-    fn build_resource(
-        self,
-        ctx: &mut TestContext,
-    ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
-        let CountryDefinition { name } = self;
-        Ok(Country {
-            id: ctx.next_country_id(),
-            name,
         })
     }
 }

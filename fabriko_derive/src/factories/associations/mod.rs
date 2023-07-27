@@ -51,11 +51,44 @@ struct AssociationAttributesStructureField<'a> {
     kind: AssociationKind<'a>,
 }
 
+impl<'a> AssociationAttributesStructureField<'a> {
+    /// TODO: test
+    fn ident_when_destructuring(&self) -> TokenStream {
+        let ident = self.field_ident;
+        quote::quote!(#ident,)
+    }
+
+    /// TODO: test
+    fn reassign_belonging_to(&self) -> TokenStream {
+        let ident = self.field_ident;
+        quote::quote!(let #ident = #ident.belonging_to(__resource);)
+    }
+}
+
 /// The definition of the structure that will hold all associations
 /// to related resources for the Factory being derived
 struct AssociationAttributesStructure<'a> {
     ident: &'a Ident,
     fields: Vec<AssociationAttributesStructureField<'a>>,
+}
+
+// TODO: There has to be a better way to write that
+// Intention :
+// * index = 0 -> 'A' (as an ident)
+// * index = 1 -> 'B' (as an ident)
+// * .. and so on
+fn index_as_generic_char(index: usize) -> Ident {
+    let generic_char_index = 'A' as u8 as usize + index;
+    Ident::new(
+        &char::from_u32(
+            generic_char_index
+                .try_into()
+                .expect("Failed to transform usize into u32"),
+        )
+        .into_iter()
+        .collect::<String>(),
+        Span::call_site(),
+    )
 }
 
 impl<'a> AssociationsDeriveAttributes<'a> {
@@ -66,46 +99,27 @@ impl<'a> AssociationsDeriveAttributes<'a> {
             associations_ty,
         } = self;
 
-        // TODO: There has to be a better way to write that
-        // Intention :
-        // * index = 0 -> 'A' (as an ident)
-        // * index = 1 -> 'B' (as an ident)
-        // * .. and so on
-        let index_as_generic_char = |index: usize| {
-            let generic_char_index = 'A' as u8 as usize + index;
-            Ident::new(
-                &char::from_u32(
-                    generic_char_index
-                        .try_into()
-                        .expect("Failed to transform usize into u32"),
-                )
-                .into_iter()
-                .collect::<String>(),
-                Span::call_site(),
-            )
-        };
-
-        let has_manies = has_many.iter().enumerate().map(|(index, has_many)| {
-            AssociationAttributesStructureField {
-                field_ident: &has_many.name,
-                generic: index_as_generic_char(index),
-                kind: AssociationKind::HasMany(has_many),
-            }
-        });
-        // TODO: get rid of this by chaining has_many and has_one, and mapping them to an AssociationKind
-        // .. since AssociationKind holds all the data we need anyway
-        let has_manies_len = has_manies.len();
-        let has_ones = has_one.iter().enumerate().map(|(index, has_one)| {
-            AssociationAttributesStructureField {
-                field_ident: &has_one.name,
-                generic: index_as_generic_char(index + has_manies_len),
-                kind: AssociationKind::HasOne(has_one),
-            }
-        });
+        let fields = has_many
+            .iter()
+            .map(AssociationKind::HasMany)
+            .chain(has_one.iter().map(AssociationKind::HasOne))
+            .enumerate()
+            .map(|(index, kind)| {
+                let name = match kind {
+                    AssociationKind::HasOne(one) => &one.name,
+                    AssociationKind::HasMany(many) => &many.name,
+                };
+                AssociationAttributesStructureField {
+                    field_ident: &name,
+                    generic: index_as_generic_char(index),
+                    kind,
+                }
+            })
+            .collect();
 
         AssociationAttributesStructure {
             ident: associations_ty,
-            fields: has_manies.chain(has_ones).collect(),
+            fields,
         }
     }
 }
@@ -119,12 +133,15 @@ impl<'a> AssociationsDeriveAttributes<'a> {
         let structure_decl = association_attributes_structure.derive_structure_declaration();
         let with_related_resources_impl =
             association_attributes_structure.derive_with_related_resources_impl(factory_ident);
+        let belonging_to_impl =
+            association_attributes_structure.derive_belonging_to_implementation_for_associations();
         // TODO: Setters for the Associations structure
         // TODO: Factory (or something else?) implementation for the Associations structure
 
         quote::quote!(
             #structure_decl
             #with_related_resources_impl
+            #belonging_to_impl
         )
     }
 }
@@ -191,6 +208,56 @@ impl<'a> AssociationAttributesStructure<'a> {
         quote::quote!(
             impl ::fabriko::WithRelatedResources for #factory_ident {
                 type DefaultAssociations = #ident<#generics_of_associations_type>;
+            }
+        )
+    }
+
+    /// TODO: tests
+    fn derive_belonging_to_implementation_for_associations(&self) -> TokenStream {
+        let AssociationAttributesStructure { ident, fields } = self;
+        let generics: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: _,
+                    generic,
+                    kind: _,
+                } = field;
+                quote::quote!(#generic,)
+            })
+            .collect();
+        let generics_belonging_to: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: _,
+                    generic,
+                    kind: _,
+                } = field;
+                quote::quote!(#generic: ::fabriko::BelongingTo<RESOURCE>,)
+            })
+            .collect();
+        let fields_when_destructuring: TokenStream = fields
+            .iter()
+            .map(AssociationAttributesStructureField::ident_when_destructuring)
+            .collect();
+        let fields_reassignments: TokenStream = fields
+            .iter()
+            .map(AssociationAttributesStructureField::reassign_belonging_to)
+            .collect();
+        quote::quote!(
+            impl<RESOURCE, #generics_belonging_to> BelongingTo<RESOURCE>
+                for #ident<#generics>
+            {
+                fn belonging_to(self, __resource: &RESOURCE) -> Self {
+                    let #ident {
+                        #fields_when_destructuring
+                    } = self;
+                    #fields_reassignments
+                    #ident {
+                        #fields_when_destructuring
+                    }
+                }
             }
         )
     }

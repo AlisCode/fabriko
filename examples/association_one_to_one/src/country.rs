@@ -1,13 +1,7 @@
-use fabriko::{
-    BelongingTo, BuildResource, Factory, FactoryContext, HasMany, HasOneCreated, HasOneDefault,
-    HasOneToCreate, WithIdentifier,
-};
+use fabriko::{BelongingTo, BuildResource, Factory, FactoryContext, WithIdentifier};
 use nutype::nutype;
 
-use crate::{
-    city::{CityFactory, CityId},
-    TestContext,
-};
+use crate::{city::CityFactory, TestContext};
 
 #[nutype]
 #[derive(*)]
@@ -31,9 +25,10 @@ impl WithIdentifier for Country {
     factory = "CountryFactory",
     associations = "CountryFactoryAssociations"
 )]
-#[factory(has_one(factory = "CityFactory", name = "capital_city"))]
-#[factory(has_many(factory = "CityFactory", name = "cities"))]
+#[factory(has_one(factory = "CityFactory", name = "capital_city", link = "country"))]
+#[factory(has_many(factory = "CityFactory", name = "cities", setter = "city"))]
 pub struct CountryDefinition {
+    #[factory(into)]
     name: String,
 }
 
@@ -52,48 +47,7 @@ impl BuildResource<TestContext> for CountryDefinition {
     }
 }
 
-impl<A> CountryFactoryAssociations<A, HasOneDefault<CityFactory>> {
-    pub fn capital_city_id(
-        self,
-        city_id: CityId,
-    ) -> CountryFactoryAssociations<A, HasOneCreated<CityId>> {
-        let CountryFactoryAssociations {
-            capital_city: _,
-            cities,
-        } = self;
-        let capital_city = HasOneCreated::new(city_id);
-        CountryFactoryAssociations {
-            capital_city,
-            cities,
-        }
-    }
-
-    pub fn capital_city<F: FnOnce(CityFactory) -> CityFactory>(
-        self,
-        func: F,
-    ) -> CountryFactoryAssociations<A, HasOneToCreate<CityFactory>> {
-        let CountryFactoryAssociations {
-            capital_city: _,
-            cities,
-        } = self;
-        let capital_city = HasOneToCreate::new(func(Default::default()));
-        CountryFactoryAssociations {
-            capital_city,
-            cities,
-        }
-    }
-}
-
-impl<B> CountryFactoryAssociations<HasMany<CityFactory>, B> {
-    pub fn with_city<F: FnOnce(CityFactory) -> CityFactory>(
-        mut self,
-        func: F,
-    ) -> CountryFactoryAssociations<HasMany<CityFactory>, B> {
-        self.cities = self.cities.with(func);
-        self
-    }
-}
-
+/// TODO: Derive
 impl<CTX: FactoryContext, A: Factory<CTX>, B: Factory<CTX>> Factory<CTX>
     for CountryFactoryAssociations<A, B>
 {

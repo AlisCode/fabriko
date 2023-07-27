@@ -97,7 +97,7 @@ pub(crate) fn declare_fields_belonging_to(
             self.#ident = ::fabriko::BelongsTo::Create(f(Default::default()));
             self
         }
-        pub fn #ident(mut self, id: <Self as BelongingToLink<{ #ident_hash }>>::ID) -> Self {
+        pub fn #ident(mut self, id: <Self as ::fabriko::BelongingToLink<{ #ident_hash }>>::ID) -> Self {
             self.#ident = ::fabriko::BelongsTo::Created(id);
             self
         }

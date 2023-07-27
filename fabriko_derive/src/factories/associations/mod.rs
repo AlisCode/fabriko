@@ -42,6 +42,138 @@ enum AssociationKind<'a> {
     HasOne(&'a HasOneAssociation),
 }
 
+pub(crate) trait AssociationsCodegen {
+    fn derive_setters(&self, structure: &AssociationAttributesStructure) -> TokenStream;
+}
+
+pub(crate) struct AssociationsSetter<'a> {
+    field_ident: &'a Ident,
+    setter_fn: TokenStream,
+    argument_of_setter: TokenStream,
+    create_set_type_of_association: TokenStream,
+    default_type_of_association: TokenStream,
+    set_type_of_association: TokenStream,
+}
+
+impl<'a> AssociationsSetter<'a> {
+    fn derive_setter(&self, structure: &AssociationAttributesStructure) -> TokenStream {
+        let AssociationsSetter {
+            field_ident,
+            setter_fn: setter_fn_name,
+            argument_of_setter,
+            create_set_type_of_association,
+            default_type_of_association,
+            set_type_of_association,
+        } = self;
+
+        let AssociationAttributesStructure { ident, fields } = structure;
+
+        let all_fields_ident: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let ident = field.field_ident;
+                quote::quote!(#ident,)
+            })
+            .collect();
+        let generics: TokenStream = fields
+            .iter()
+            .filter_map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: ident,
+                    generic,
+                    kind: _,
+                } = field;
+                if ident != field_ident {
+                    return Some(quote::quote!(#generic,));
+                }
+                None
+            })
+            .collect();
+        let base_generics: TokenStream = fields
+            .iter()
+            .filter_map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: ident,
+                    generic,
+                    kind: _,
+                } = field;
+                if ident == field_ident {
+                    return Some(quote::quote!(#default_type_of_association,));
+                }
+                Some(quote::quote!(#generic,))
+            })
+            .collect();
+        let set_generics: TokenStream = fields
+            .iter()
+            .filter_map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: ident,
+                    generic,
+                    kind: _,
+                } = field;
+                if ident == field_ident {
+                    return Some(quote::quote!(#set_type_of_association,));
+                }
+                Some(quote::quote!(#generic,))
+            })
+            .collect();
+
+        quote::quote!(
+            impl<#generics> #ident<#base_generics> {
+                // Because the field being associated might get mutated
+                // or reassigned, it might be unused.
+                #[allow(unused_variables)]
+                pub fn #setter_fn_name(
+                    self,
+                    #argument_of_setter,
+                ) -> #ident<#set_generics> {
+                    let #ident {
+                        #all_fields_ident
+                    } = self;
+                    let #field_ident = #create_set_type_of_association;
+                    #ident {
+                        #all_fields_ident
+                    }
+                }
+            }
+        )
+    }
+}
+
+/*
+impl<A> CountryFactoryAssociations<A, HasOneDefault<CityFactory>> {
+    pub fn capital_city_id(
+        self,
+        city_id: CityId,
+    ) -> CountryFactoryAssociations<A, HasOneCreated<CityId>> {
+        let CountryFactoryAssociations {
+            capital_city: _,
+            cities,
+        } = self;
+        let capital_city = HasOneCreated::new(city_id);
+        CountryFactoryAssociations {
+            capital_city,
+            cities,
+        }
+    }
+
+    pub fn capital_city<F: FnOnce(CityFactory) -> CityFactory>(
+        self,
+        func: F,
+    ) -> CountryFactoryAssociations<A, HasOneToCreate<CityFactory>> {
+        let CountryFactoryAssociations {
+            capital_city: _,
+            cities,
+        } = self;
+        let capital_city = HasOneToCreate::new(func(Default::default()));
+        CountryFactoryAssociations {
+            capital_city,
+            cities,
+        }
+    }
+}
+*/
+
 /// One field of an [`AssocaitionAttributesStructure`].
 /// This is in essence a declaration of an association, in a format that makes it easy
 /// for the codegen.
@@ -67,7 +199,7 @@ impl<'a> AssociationAttributesStructureField<'a> {
 
 /// The definition of the structure that will hold all associations
 /// to related resources for the Factory being derived
-struct AssociationAttributesStructure<'a> {
+pub(crate) struct AssociationAttributesStructure<'a> {
     ident: &'a Ident,
     fields: Vec<AssociationAttributesStructureField<'a>>,
 }
@@ -135,13 +267,14 @@ impl<'a> AssociationsDeriveAttributes<'a> {
             association_attributes_structure.derive_with_related_resources_impl(factory_ident);
         let belonging_to_impl =
             association_attributes_structure.derive_belonging_to_implementation_for_associations();
-        // TODO: Setters for the Associations structure
+        let setters = association_attributes_structure.derive_setters();
         // TODO: Factory (or something else?) implementation for the Associations structure
 
         quote::quote!(
             #structure_decl
             #with_related_resources_impl
             #belonging_to_impl
+            #setters
         )
     }
 }
@@ -193,12 +326,12 @@ impl<'a> AssociationAttributesStructure<'a> {
                         AssociationKind::HasMany(HasManyAssociation {
                             for_factory,
                             name: _,
-                            // setter: _,
+                            setter: _,
                         }) => quote::quote!(::fabriko::HasMany<#for_factory>),
                         AssociationKind::HasOne(HasOneAssociation {
                             for_factory,
                             name: _,
-                            // setter: _,
+                            link: _,
                         }) => quote::quote!(::fabriko::HasOneDefault<#for_factory>),
                     };
                     quote::quote!(#generic,)
@@ -260,5 +393,16 @@ impl<'a> AssociationAttributesStructure<'a> {
                 }
             }
         )
+    }
+
+    /// TODO: tests
+    fn derive_setters(&self) -> TokenStream {
+        self.fields
+            .iter()
+            .map(|field| match field.kind {
+                AssociationKind::HasMany(many) => many.derive_setters(self),
+                AssociationKind::HasOne(one) => one.derive_setters(self),
+            })
+            .collect()
     }
 }

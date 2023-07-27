@@ -42,10 +42,10 @@ fn main() {
             cities: french_cities,
         },
     ) = f.country(|c| {
-        c.name("France".into()).with_related_resources(|rr| {
-            rr.capital_city(|c| c.name("Paris".into()))
-                .with_city(|c| c.name("Lyon".into()))
-                .with_city(|c| c.name("Marseille".into()))
+        c.name("France").with_related_resources(|rr| {
+            rr.capital_city(|c| c.name("Paris"))
+                .with_city(|c| c.name("Lyon"))
+                .with_city(|c| c.name("Marseille"))
         })
     });
     dbg!(france);
@@ -53,8 +53,8 @@ fn main() {
     dbg!(french_cities);
 
     let barcelona = f.city(|city| {
-        city.name("Barcelona".into())
-            .country(|country| country.name("Spain".into()))
+        city.name("Barcelona")
+            .belonging_to_country(|country| country.name("Spain"))
     });
     dbg!(barcelona);
 }

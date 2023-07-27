@@ -1,5 +1,8 @@
 use darling::FromMeta;
+use proc_macro2::Span;
 use syn::{Ident, Path};
+
+use super::{AssociationsCodegen, AssociationsSetter};
 
 #[derive(FromMeta)]
 /// TODO: Document
@@ -7,7 +10,31 @@ pub(crate) struct HasManyAssociation {
     #[darling(rename = "factory")]
     pub(crate) for_factory: Path,
     pub(crate) name: Ident,
-    // pub(crate) setter: Ident,
+    pub(crate) setter: Ident,
+}
+
+impl AssociationsCodegen for HasManyAssociation {
+    fn derive_setters(
+        &self,
+        structure: &super::AssociationAttributesStructure,
+    ) -> proc_macro2::TokenStream {
+        let HasManyAssociation {
+            for_factory,
+            name,
+            setter,
+        } = self;
+        let setter_fn_name = Ident::new(&format!("with_{setter}"), Span::call_site());
+        let setter_fn = quote::quote!(#setter_fn_name<FUNC: FnOnce(#for_factory) -> #for_factory>);
+        AssociationsSetter {
+            field_ident: name,
+            setter_fn,
+            argument_of_setter: quote::quote!(__func: FUNC),
+            create_set_type_of_association: quote::quote!(#name.with(__func)),
+            default_type_of_association: quote::quote!(::fabriko::HasMany<#for_factory>),
+            set_type_of_association: quote::quote!(::fabriko::HasMany<#for_factory>),
+        }
+        .derive_setter(structure)
+    }
 }
 
 /*

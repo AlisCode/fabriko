@@ -140,40 +140,6 @@ impl<'a> AssociationsSetter<'a> {
     }
 }
 
-/*
-impl<A> CountryFactoryAssociations<A, HasOneDefault<CityFactory>> {
-    pub fn capital_city_id(
-        self,
-        city_id: CityId,
-    ) -> CountryFactoryAssociations<A, HasOneCreated<CityId>> {
-        let CountryFactoryAssociations {
-            capital_city: _,
-            cities,
-        } = self;
-        let capital_city = HasOneCreated::new(city_id);
-        CountryFactoryAssociations {
-            capital_city,
-            cities,
-        }
-    }
-
-    pub fn capital_city<F: FnOnce(CityFactory) -> CityFactory>(
-        self,
-        func: F,
-    ) -> CountryFactoryAssociations<A, HasOneToCreate<CityFactory>> {
-        let CountryFactoryAssociations {
-            capital_city: _,
-            cities,
-        } = self;
-        let capital_city = HasOneToCreate::new(func(Default::default()));
-        CountryFactoryAssociations {
-            capital_city,
-            cities,
-        }
-    }
-}
-*/
-
 /// One field of an [`AssocaitionAttributesStructure`].
 /// This is in essence a declaration of an association, in a format that makes it easy
 /// for the codegen.
@@ -268,13 +234,14 @@ impl<'a> AssociationsDeriveAttributes<'a> {
         let belonging_to_impl =
             association_attributes_structure.derive_belonging_to_implementation_for_associations();
         let setters = association_attributes_structure.derive_setters();
-        // TODO: Factory (or something else?) implementation for the Associations structure
+        let factory_impl = association_attributes_structure.derive_factory_impl();
 
         quote::quote!(
             #structure_decl
             #with_related_resources_impl
             #belonging_to_impl
             #setters
+            #factory_impl
         )
     }
 }
@@ -404,5 +371,85 @@ impl<'a> AssociationAttributesStructure<'a> {
                 AssociationKind::HasOne(one) => one.derive_setters(self),
             })
             .collect()
+    }
+
+    /// TODO: tests
+    fn derive_factory_impl(&self) -> TokenStream {
+        let AssociationAttributesStructure { ident, fields } = self;
+        let generics_with_factory_constraint: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: _,
+                    generic,
+                    kind: _,
+                } = field;
+                quote::quote!(#generic: ::fabriko::Factory<CTX>,)
+            })
+            .collect();
+        let generics_output: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: _,
+                    generic,
+                    kind: _,
+                } = field;
+                quote::quote!(#generic::Output,)
+            })
+            .collect();
+        let generics: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident: _,
+                    generic,
+                    kind: _,
+                } = field;
+                quote::quote!(#generic,)
+            })
+            .collect();
+        let fields_idents: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident,
+                    generic: _,
+                    kind: _,
+                } = field;
+                quote::quote!(#field_ident,)
+            })
+            .collect();
+        let fields_reassign: TokenStream = fields
+            .iter()
+            .map(|field| {
+                let AssociationAttributesStructureField {
+                    field_ident,
+                    generic: _,
+                    kind: _,
+                } = field;
+                quote::quote!(let #field_ident = #field_ident.create(ctx)?;)
+            })
+            .collect();
+        quote::quote!(
+            impl<CTX: ::fabriko::FactoryContext, #generics_with_factory_constraint> ::fabriko::Factory<CTX>
+                for #ident<#generics>
+            {
+                type Output = #ident<#generics_output>;
+
+                fn create(
+                    self,
+                    ctx: &mut CTX,
+                ) -> Result<Self::Output, <CTX as ::fabriko::FactoryContext>::Error> {
+                    let #ident {
+                        #fields_idents
+                    } = self;
+                    #fields_reassign
+                    Ok(#ident {
+                        #fields_idents
+                    })
+                }
+            }
+        )
     }
 }

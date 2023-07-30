@@ -1,4 +1,4 @@
-use crate::country::{Country, CountryFactory, CountryId};
+use crate::country::{CountryFactory, CountryId};
 use crate::TestContext;
 use fabriko::{BelongingTo, BuildResource, Factory, FactoryContext, WithIdentifier};
 use nutype::nutype;
@@ -20,14 +20,6 @@ impl WithIdentifier for City {
 
     fn extract_id(&self) -> Self::ID {
         self.id
-    }
-}
-
-/// TODO: Is this necessary ?
-impl BelongingTo<Country> for CityFactory {
-    fn belonging_to(mut self, resource: &Country) -> Self {
-        self.country = ::fabriko::BelongsTo::Created(resource.extract_id());
-        self
     }
 }
 

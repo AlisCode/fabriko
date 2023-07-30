@@ -1,4 +1,6 @@
-use crate::{BelongingTo, Factory, FactoryContext, WithIdentifier};
+use crate::{
+    BelongingTo, BelongingToLink, Factory, FactoryBelongingTo, FactoryContext, WithIdentifier,
+};
 
 #[derive(Debug, Default)]
 pub struct HasOneDefault<F>(F);
@@ -41,15 +43,15 @@ impl<R, ID> BelongingTo<R> for HasOneCreated<ID> {
 }
 
 #[derive(Debug)]
-pub struct HasOneToCreate<F>(F);
+pub struct HasOneToCreate<const N: u64, F>(FactoryBelongingTo<N, F>);
 
-impl<F> HasOneToCreate<F> {
+impl<const N: u64, F> HasOneToCreate<N, F> {
     pub fn new(factory: F) -> Self {
-        HasOneToCreate(factory)
+        HasOneToCreate(FactoryBelongingTo { factory })
     }
 }
 
-impl<CTX: FactoryContext, F: Factory<CTX>> Factory<CTX> for HasOneToCreate<F>
+impl<const N: u64, CTX: FactoryContext, F: Factory<CTX>> Factory<CTX> for HasOneToCreate<N, F>
 where
     <F as Factory<CTX>>::Output: WithIdentifier,
 {
@@ -60,7 +62,9 @@ where
     }
 }
 
-impl<R, F: BelongingTo<R>> BelongingTo<R> for HasOneToCreate<F> {
+impl<const N: u64, R: WithIdentifier, F: BelongingToLink<N, ID = <R as WithIdentifier>::ID>>
+    BelongingTo<R> for HasOneToCreate<N, F>
+{
     fn belonging_to(mut self, resource: &R) -> Self {
         self.0 = self.0.belonging_to(resource);
         self

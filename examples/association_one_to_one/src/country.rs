@@ -26,7 +26,7 @@ impl WithIdentifier for Country {
     associations = "CountryFactoryAssociations"
 )]
 #[factory(has_one(factory = "CityFactory", name = "capital_city", link = "country"))]
-#[factory(has_many(factory = "CityFactory", name = "cities", setter = "city"))]
+#[factory(has_many(factory = "CityFactory", name = "cities", link = "country"))]
 pub struct CountryDefinition {
     #[factory(into)]
     name: String,

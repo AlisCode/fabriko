@@ -44,8 +44,8 @@ fn main() {
     ) = f.country(|c| {
         c.name("France").with_related_resources(|rr| {
             rr.capital_city(|c| c.name("Paris"))
-                .with_city(|c| c.name("Lyon"))
-                .with_city(|c| c.name("Marseille"))
+                .with_cities(|c| c.name("Lyon"))
+                .with_cities(|c| c.name("Marseille"))
         })
     });
     dbg!(france);

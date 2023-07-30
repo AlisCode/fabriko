@@ -37,6 +37,7 @@ pub trait BelongingToLink<const N: u64> {
     const SETTER: FactorySetter<Self, Self::ID>;
 }
 
+#[derive(Debug)]
 pub struct FactoryBelongingTo<const N: u64, F> {
     pub factory: F,
 }

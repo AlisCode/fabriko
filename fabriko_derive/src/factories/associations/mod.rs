@@ -290,11 +290,7 @@ impl<'a> AssociationAttributesStructure<'a> {
                      kind,
                  }| {
                     let generic = match kind {
-                        AssociationKind::HasMany(HasManyAssociation {
-                            for_factory,
-                            name: _,
-                            setter: _,
-                        }) => quote::quote!(::fabriko::HasMany<#for_factory>),
+                        AssociationKind::HasMany(many) => many.has_many_type(),
                         AssociationKind::HasOne(HasOneAssociation {
                             for_factory,
                             name: _,

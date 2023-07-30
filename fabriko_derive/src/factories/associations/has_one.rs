@@ -65,9 +65,13 @@ impl<'a> AssociationsCodegen for FactorySetter<'a> {
         let HasOneAssociation {
             for_factory,
             name,
-            link: _,
+            link,
         } = self.0;
         let setter_fn = quote::quote!(#name<FUNC: FnOnce(#for_factory) -> #for_factory>);
+        let mut hasher = FnvHasher::default();
+        link.to_string().hash(&mut hasher);
+        let setter_hash = hasher.finish();
+
         AssociationsSetter {
             field_ident: name,
             setter_fn,
@@ -76,7 +80,7 @@ impl<'a> AssociationsCodegen for FactorySetter<'a> {
                 Default::default()
             ))),
             default_type_of_association: quote::quote!(::fabriko::HasOneDefault<#for_factory>),
-            set_type_of_association: quote::quote!(::fabriko::HasOneToCreate<#for_factory>),
+            set_type_of_association: quote::quote!(::fabriko::HasOneToCreate<#setter_hash, #for_factory>),
         }
         .derive_setter(structure)
     }

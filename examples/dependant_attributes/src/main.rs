@@ -24,7 +24,7 @@ impl User {
 }
 
 #[derive(Debug, Factory)]
-#[factory(factory = "UserFactory", associations = "UserAssociations")]
+#[factory(factory = "UserFactory")]
 pub struct UserDefinition {
     #[factory(into, default = "\"Alice\".into()")]
     firstname: String,

@@ -24,7 +24,7 @@ struct FactoryDeriveInput {
     #[darling(rename = "factory")]
     factory_ident: Ident,
     #[darling(rename = "associations")]
-    associations_ident: Ident, // TODO: Make Optional
+    associations_ident: Option<Ident>,
     #[darling(multiple)]
     has_many: Vec<HasManyAssociation>,
     #[darling(multiple)]
@@ -54,12 +54,14 @@ impl FactoryDeriveInput {
         let factory_implementation =
             derive_factory_implementation(attributes_ident, factory_ident, fields)?;
         let associated_resources_definition_and_implementation =
-            self::associations::derive_associations(
-                has_many,
-                has_one,
-                &associations_ident,
-                factory_ident,
-            );
+            associations_ident.as_ref().map(|associations_ident| {
+                self::associations::derive_associations(
+                    has_many,
+                    has_one,
+                    &associations_ident,
+                    factory_ident,
+                )
+            });
         let belonging_to_link_implementations =
             self::associations::belongs_to::derive_belonging_to_link_implementations(
                 factory_ident,

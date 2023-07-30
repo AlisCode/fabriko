@@ -43,7 +43,7 @@ pub struct Account {
 }
 
 #[derive(Debug, Factory)]
-#[factory(factory = "AccountFactory", associations = "AccountAssociations")]
+#[factory(factory = "AccountFactory")]
 pub struct AccountDefinition {
     #[factory(into, default = "S3kUr3_P@sSw0rd".into())]
     password: String,

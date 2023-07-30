@@ -1,4 +1,4 @@
-use fabriko::{BelongingTo, BuildResource, Factory, FactoryContext, WithIdentifier};
+use fabriko::{BuildResource, Factory, FactoryContext, WithIdentifier};
 use nutype::nutype;
 
 use crate::{city::CityFactory, TestContext};

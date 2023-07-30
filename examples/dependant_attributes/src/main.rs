@@ -24,7 +24,7 @@ impl User {
 }
 
 #[derive(Debug, Factory)]
-#[factory(factory = "UserFactory")]
+#[factory(factory = "UserFactory", associations = "UserAssociations")]
 pub struct UserDefinition {
     #[factory(into, default = "\"Alice\".into()")]
     firstname: String,
@@ -37,7 +37,7 @@ pub struct UserDefinition {
 impl BuildResource<TestContext> for UserDefinition {
     type Output = User;
 
-    fn create(self, _ctx: &mut TestContext) -> Result<Self::Output, ()> {
+    fn build_resource(self, _ctx: &mut TestContext) -> Result<Self::Output, ()> {
         let UserDefinition {
             firstname,
             lastname,

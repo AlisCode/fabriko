@@ -1,6 +1,6 @@
 use crate::country::{CountryFactory, CountryId};
 use crate::TestContext;
-use fabriko::{BelongingTo, BuildResource, Factory, FactoryContext, WithIdentifier};
+use fabriko::{BuildResource, Factory, FactoryContext, WithIdentifier};
 use nutype::nutype;
 
 #[nutype]

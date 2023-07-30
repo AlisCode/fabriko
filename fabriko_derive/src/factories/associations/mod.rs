@@ -342,7 +342,7 @@ impl<'a> AssociationAttributesStructure<'a> {
             .map(AssociationAttributesStructureField::reassign_belonging_to)
             .collect();
         quote::quote!(
-            impl<RESOURCE, #generics_belonging_to> BelongingTo<RESOURCE>
+            impl<RESOURCE, #generics_belonging_to> ::fabriko::BelongingTo<RESOURCE>
                 for #ident<#generics>
             {
                 fn belonging_to(self, __resource: &RESOURCE) -> Self {

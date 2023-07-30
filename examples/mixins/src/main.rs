@@ -43,7 +43,7 @@ pub struct Account {
 }
 
 #[derive(Debug, Factory)]
-#[factory(factory = "AccountFactory")]
+#[factory(factory = "AccountFactory", associations = "AccountAssociations")]
 pub struct AccountDefinition {
     #[factory(into, default = "S3kUr3_P@sSw0rd".into())]
     password: String,
@@ -55,7 +55,7 @@ pub struct AccountDefinition {
 impl BuildResource<TestContext> for AccountDefinition {
     type Output = Account;
 
-    fn create(
+    fn build_resource(
         self,
         _ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {

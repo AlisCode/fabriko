@@ -11,9 +11,7 @@
 //! your domain language, all the while reusing the implementation of other factories. Here are
 //! some examples :
 
-use fabriko::{
-    BelongingToLink, BuildResource, Factory, FactoryBundle, FactoryContext, WithRelatedResources,
-};
+use fabriko::{BuildResource, Factory, FactoryBundle, FactoryContext, WithRelatedResources};
 
 use context::{TestContext, TestContextFabriko};
 use models::todo::Todo;
@@ -23,7 +21,7 @@ mod context;
 mod models;
 
 #[derive(Debug, Factory)]
-#[factory(factory = "TodoFactory")]
+#[factory(factory = "TodoFactory", associations = "TodoAssociations")]
 pub struct TodoDefinition {
     #[factory(into, default = "\"My Todo\".to_string()")]
     title: String,
@@ -35,7 +33,7 @@ pub struct TodoDefinition {
 impl BuildResource<TestContext> for TodoDefinition {
     type Output = Todo;
 
-    fn create(
+    fn build_resource(
         self,
         ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as fabriko::FactoryContext>::Error> {
@@ -54,8 +52,8 @@ impl BuildResource<TestContext> for TodoDefinition {
 }
 
 #[derive(Debug, Factory)]
-#[factory(factory = "TodoGroupFactory")]
-#[factory(has_many(factory = "TodoFactory", setter = "todo_group", name = "todo"))]
+#[factory(factory = "TodoGroupFactory", associations = "TodoGroupAssociations")]
+#[factory(has_many(factory = "TodoFactory", link = "todo_group", name = "todos"))]
 pub struct TodoGroupDefinition {
     #[factory(into)]
     title: String,
@@ -64,7 +62,7 @@ pub struct TodoGroupDefinition {
 impl BuildResource<TestContext> for TodoGroupDefinition {
     type Output = TodoGroup;
 
-    fn create(
+    fn build_resource(
         self,
         ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
@@ -112,15 +110,14 @@ fn main() {
 
     // Alternatively, the user can create a container (group) and declare resources (todos)
     // that belongs to it. We then get access to those resources.
-    let (todo_group, (todo_one, todo_two)) = f.todo_group(|tg| {
-        tg.title("TG")
-            .with_related_resources()
-            .with_todo(|t| t.title("Todo one").done(true))
-            .with_todo(|t| t.title("Todo two"))
+    let (todo_group, TodoGroupAssociations { todos }) = f.todo_group(|tg| {
+        tg.title("TG").with_related_resources(|tg| {
+            tg.with_todos(|t| t.title("Todo one").done(true))
+                .with_todos(|t| t.title("Todo two"))
+        })
     });
     dbg!(todo_group);
-    dbg!(todo_one);
-    dbg!(todo_two);
+    dbg!(todos);
 
     // You can also use bundles to create the container, and the two todos belonging to it
     let MyTestBundle {

@@ -11,6 +11,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "associations"
+version = "0.1.0"
+dependencies = [
+ "fabriko",
+ "nutype",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -46,6 +54,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dependant_attributes"
+version = "0.1.0"
+dependencies = [
+ "fabriko",
+]
+
+[[package]]
 name = "fabriko"
 version = "0.1.0"
 dependencies = [
@@ -74,6 +89,13 @@ name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
+name = "mixins"
+version = "0.1.0"
+dependencies = [
+ "fabriko",
+]
 
 [[package]]
 name = "nutype"

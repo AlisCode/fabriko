@@ -1,5 +1,43 @@
-//! In this example, a Todo belongs to a Todo Group. This means that a Todo can not be created
-//! before a TodoGroup is created because our data model does not allow that.
+//! The following example demonstrates how `fabriko` handles associations, by building as
+//! an example a todo app that supports grouping todos in groups, and having users access them.
+//!
+//! * A `todo` belongs to a `todo_group` : there is a one-to-many relationship.
+//! * A `user` can belong to one or more `user_group`, and a `user_group` is
+//! composed of one or more `user` : there is a many-to-many relationship (the linking table is
+//! called `user_in_group`).
+//! * A `user` has exactly one `user_detail` that points to it : there is a one-to-one
+//! relationship (NOTE: Fabriko currently does *NOT* support one-to-one relationships where each entity
+//! points to the other).
+//!
+//! The resources can be represented by the following diagram :
+//!
+//!   ┌────────────┐ ┌─────────────────────┐   ┌───────────┐
+//!   │user_details│ │todos                │   │todo_groups│
+//!   ├────────────┤ ├─────────────────────┤   ├───────────┤
+//!   │id   integer│ │id            integer│ ┌►│id  integer│
+//!   │email string│ │title          string│ │ │name string│
+//! ┌─┤user_id  int│ │done          boolean│ │ └───────────┘
+//! │ └────────────┘ │todo_group_id integer├─┘
+//! │                └─────────────────────┘
+//! │
+//! │ ┌────────────┐  ┌─────────────────────┐   ┌───────────┐
+//! │ │users       │  │user_in_groups       │   │user_groups│
+//! │ ├────────────┤  ├─────────────────────┤   ├───────────┤
+//! └►│id   integer│◄─┤user_id       integer│ ┌►│id  integer│
+//!   │name  string│  │user_group_id integer├─┘ │name string│
+//!   └────────────┘  └─────────────────────┘   └───────────┘
+//!
+//! In practice, this means that a `todo` can not be created without the `todo_group` it belongs to.
+//! Same goes for a `user_detail` because it semantically belongs to a user.
+//! A `user` can be created independently from a `user_group`, and vice versa.
+//!
+//! When writing a test, one typically wants to create a resource, the subject of the test, and
+//! the related resource that go with it. E.g. when testing that a `todo` can be renamed, we would
+//! create a `todo` and launch the code to rename it.
+//!
+//! Declaring the whole set of dependencies necessary to the test can be cumbersome and verbose,
+//! leading to more code and therefore unreadable tests. Fabriko tries to adress that by
+//! allowing you to create and persist these resources in a declarative way.
 //!
 //! Fabriko allows the user to effortlessly create resources associated with each other :
 //! * By automatically declaring the "container" that this resource depends on, if relevant.
@@ -7,72 +45,23 @@
 //! * By making it easy to create associated resources ("children") - e.g. create todos
 //! belonging to a group
 //!
-//! Fabriko allows all possible flow of declaration of resources so that your test fixtures can match
-//! your domain language, all the while reusing the implementation of other factories. Here are
-//! some examples :
 
-use fabriko::{BuildResource, Factory, FactoryBundle, FactoryContext, WithRelatedResources};
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use context::{TestContext, TestContextFabriko};
-use models::todo::Todo;
-use models::todo_group::{TodoGroup, TodoGroupId};
+use fabriko::{Factory, FactoryBundle, WithRelatedResources};
+
+use context::TestContextFabriko;
+use models::todo::{Todo, TodoFactory};
+use models::todo_group::{TodoGroup, TodoGroupFactory};
+
+use crate::context::{AppState, TestContext};
+use crate::models::todo_group::TodoGroupAssociations;
+use crate::models::user_group::UserGroupAssociations;
 
 mod context;
+mod mixins;
 mod models;
-
-#[derive(Debug, Factory)]
-#[factory(factory = "TodoFactory", associations = "TodoAssociations")]
-pub struct TodoDefinition {
-    #[factory(into, default = "\"My Todo\".to_string()")]
-    title: String,
-    done: bool,
-    #[factory(belongs_to(factory = "TodoGroupFactory"))]
-    todo_group: TodoGroupId,
-}
-
-impl BuildResource<TestContext> for TodoDefinition {
-    type Output = Todo;
-
-    fn build_resource(
-        self,
-        ctx: &mut TestContext,
-    ) -> Result<Self::Output, <TestContext as fabriko::FactoryContext>::Error> {
-        let TodoDefinition {
-            title,
-            done,
-            todo_group: todo_group_id,
-        } = self;
-        Ok(Todo {
-            id: ctx.next_todo_id(),
-            title,
-            done,
-            todo_group_id,
-        })
-    }
-}
-
-#[derive(Debug, Factory)]
-#[factory(factory = "TodoGroupFactory", associations = "TodoGroupAssociations")]
-#[factory(has_many(factory = "TodoFactory", link = "todo_group", name = "todos"))]
-pub struct TodoGroupDefinition {
-    #[factory(into)]
-    title: String,
-}
-
-impl BuildResource<TestContext> for TodoGroupDefinition {
-    type Output = TodoGroup;
-
-    fn build_resource(
-        self,
-        ctx: &mut TestContext,
-    ) -> Result<Self::Output, <TestContext as FactoryContext>::Error> {
-        let TodoGroupDefinition { title } = self;
-        Ok(TodoGroup {
-            id: ctx.next_todo_group_id(),
-            title,
-        })
-    }
-}
 
 // When you want to share the same test setup between various tests, you can create
 // your own FactoryBundle to reduce the boilerplate to a bare minimum.
@@ -96,7 +85,8 @@ pub struct MyTestBundle {
 
 fn main() {
     // Create a testing context and the wrapper that goes with it
-    let mut f = TestContextFabriko::default();
+    let state = Rc::new(RefCell::new(AppState::default()));
+    let mut f = TestContextFabriko::new(TestContext::new(state));
 
     // The user can create a container resource that will contain many resources
     let todo_group = f.todo_group(|tg| tg.title("My TodoGroup"));
@@ -140,4 +130,14 @@ fn main() {
     let todo_in_named_group =
         f.todo(|t| t.belonging_to_todo_group(|group| group.title("Named group")));
     dbg!(todo_in_named_group);
+
+    let alice = f.user(|u| u.name("Alice"));
+    let bob = f.user(|u| u.name("Bob"));
+    let (group, UserGroupAssociations { user }) = f.user_group(|ug| {
+        ug.name("Group name").with_related_resources(|ug| {
+            ug.with_user(|uig| uig.user_id(alice.id))
+                .with_user(|uig| uig.user_id(bob.id))
+        })
+    });
+    dbg!(group, user);
 }

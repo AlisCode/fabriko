@@ -3,10 +3,10 @@ use std::rc::Rc;
 
 use fabriko::{Fabriko, FactoryContext};
 
-use crate::models::todo::{TodoFactory, TodoId};
-use crate::models::todo_group::{TodoGroupFactory, TodoGroupId};
-use crate::models::user::{UserFactory, UserId};
-use crate::models::user_group::{UserGroupFactory, UserGroupId};
+use crate::models::todo::{Todo, TodoFactory, TodoId};
+use crate::models::todo_group::{TodoGroup, TodoGroupFactory, TodoGroupId};
+use crate::models::user::{User, UserFactory, UserId};
+use crate::models::user_group::{UserGroup, UserGroupFactory, UserGroupId, UserInGroup};
 
 #[derive(Debug, Default, Fabriko)]
 #[fabriko(wrapper = "TestContextFabriko")]
@@ -28,9 +28,14 @@ impl TestContext {
 #[derive(Debug, Default)]
 pub struct AppState {
     seq_todos: i32,
+    todos: Vec<Todo>,
     seq_todo_groups: i32,
+    todo_groups: Vec<TodoGroup>,
     seq_users: i32,
+    users: Vec<User>,
     seq_user_groups: i32,
+    user_groups: Vec<UserGroup>,
+    user_in_groups: Vec<UserInGroup>,
 }
 
 impl AppState {
@@ -52,6 +57,10 @@ impl AppState {
     pub fn next_user_group_id(&mut self) -> UserGroupId {
         self.seq_user_groups += 1;
         UserGroupId::new(self.seq_user_groups)
+    }
+
+    pub fn todos(&mut self) -> &mut Vec<Todo> {
+        &mut self.todos
     }
 }
 

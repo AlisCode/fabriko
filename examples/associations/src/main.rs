@@ -59,6 +59,7 @@ use crate::context::{AppState, TestContext};
 use crate::models::todo_group::TodoGroupAssociations;
 use crate::models::user_group::UserGroupAssociations;
 
+mod actions;
 mod context;
 mod mixins;
 mod models;

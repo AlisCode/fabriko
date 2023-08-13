@@ -1,11 +1,10 @@
 use std::time::Instant;
 
 use crate::{
+    actions::ExecuteAction,
     context::AppState,
     models::todo::{Todo, TodoId},
 };
-
-use super::ExecuteAction;
 
 #[derive(Debug)]
 pub struct TodoChangeset {
@@ -29,7 +28,7 @@ impl ExecuteAction<AppState> for UpdateTodo {
 
     fn execute(self, ctx: &mut AppState) -> Self::Output {
         let todo = ctx
-            .todos()
+            .todos
             .iter_mut()
             .find(|t| t.id == self.todo_id)
             .ok_or_else(|| UpdateTodoError::TodoDoesNotExist)?;
@@ -60,7 +59,7 @@ pub mod tests {
 
     use crate::{
         actions::{
-            update_todo::{TodoChangeset, UpdateTodo, UpdateTodoError},
+            todos::update::{TodoChangeset, UpdateTodo, UpdateTodoError},
             ExecuteAction,
         },
         context::{AppState, TestContext, TestContextFabriko},

@@ -14,20 +14,14 @@ use super::{
 #[derive(*)]
 pub struct TodoGroupId(i32);
 
-#[derive(Debug)]
+#[derive(Debug, WithIdentifier)]
 pub struct TodoGroup {
+    #[identifier]
     pub id: TodoGroupId,
     pub title: String,
     pub created_at: Instant,
     pub created_by: UserId,
     pub updated_at: Instant,
-}
-
-impl WithIdentifier for TodoGroup {
-    type ID = TodoGroupId;
-    fn extract_id(&self) -> Self::ID {
-        self.id
-    }
 }
 
 #[derive(Debug, Factory)]

@@ -10,21 +10,15 @@ use crate::{context::TestContext, mixins::EditionTimestampMixin};
 #[derive(*)]
 pub struct TodoId(i32);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, WithIdentifier)]
 pub struct Todo {
+    #[identifier]
     pub id: TodoId,
     pub title: String,
     pub done: bool,
     pub todo_group_id: TodoGroupId,
     pub created_at: Instant,
     pub updated_at: Instant,
-}
-
-impl WithIdentifier for Todo {
-    type ID = TodoId;
-    fn extract_id(&self) -> Self::ID {
-        self.id
-    }
 }
 
 #[derive(Debug, Factory)]
@@ -65,7 +59,7 @@ impl BuildResource<TestContext> for TodoDefinition {
             created_at,
             updated_at,
         };
-        state.todos().push(todo.clone());
+        state.todos.push(todo.clone());
         Ok(todo)
     }
 }

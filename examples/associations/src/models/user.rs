@@ -7,18 +7,11 @@ use crate::context::TestContext;
 #[derive(*)]
 pub struct UserId(i32);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, WithIdentifier)]
 pub struct User {
+    #[identifier]
     pub id: UserId,
     pub name: String,
-}
-
-impl WithIdentifier for User {
-    type ID = UserId;
-
-    fn extract_id(&self) -> Self::ID {
-        self.id
-    }
 }
 
 #[derive(Debug, Factory)]
@@ -37,9 +30,11 @@ impl BuildResource<TestContext> for UserDefinition {
         ctx: &mut TestContext,
     ) -> Result<Self::Output, <TestContext as fabriko::FactoryContext>::Error> {
         let UserDefinition { name } = self;
-        Ok(User {
+        let user = User {
             id: ctx.state().next_user_id(),
             name,
-        })
+        };
+        ctx.state().users.push(user.clone());
+        Ok(user)
     }
 }

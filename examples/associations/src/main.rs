@@ -57,7 +57,6 @@ use models::todo_group::{TodoGroup, TodoGroupFactory};
 
 use crate::context::{AppState, TestContext};
 use crate::models::todo_group::TodoGroupAssociations;
-use crate::models::user_group::UserGroupAssociations;
 
 mod actions;
 mod context;
@@ -131,14 +130,4 @@ fn main() {
     let todo_in_named_group =
         f.todo(|t| t.belonging_to_todo_group(|group| group.title("Named group")));
     dbg!(todo_in_named_group);
-
-    let alice = f.user(|u| u.name("Alice"));
-    let bob = f.user(|u| u.name("Bob"));
-    let (group, UserGroupAssociations { user }) = f.user_group(|ug| {
-        ug.name("Group name").with_related_resources(|ug| {
-            ug.with_user(|uig| uig.user_id(alice.id))
-                .with_user(|uig| uig.user_id(bob.id))
-        })
-    });
-    dbg!(group, user);
 }

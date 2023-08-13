@@ -16,7 +16,6 @@ Supports:
 
 * One-to-one relationship
 * Documentation - most importantly for the core crate `fabriko`
-* Proc Macro for `WithIdentifier`
 * Cleanup
 * Proper README.md
 * Tests

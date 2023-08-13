@@ -28,14 +28,14 @@ impl TestContext {
 #[derive(Debug, Default)]
 pub struct AppState {
     seq_todos: i32,
-    todos: Vec<Todo>,
+    pub todos: Vec<Todo>,
     seq_todo_groups: i32,
-    todo_groups: Vec<TodoGroup>,
+    pub todo_groups: Vec<TodoGroup>,
     seq_users: i32,
-    users: Vec<User>,
+    pub users: Vec<User>,
     seq_user_groups: i32,
-    user_groups: Vec<UserGroup>,
-    user_in_groups: Vec<UserInGroup>,
+    pub user_groups: Vec<UserGroup>,
+    pub user_in_groups: Vec<UserInGroup>,
 }
 
 impl AppState {
@@ -57,10 +57,6 @@ impl AppState {
     pub fn next_user_group_id(&mut self) -> UserGroupId {
         self.seq_user_groups += 1;
         UserGroupId::new(self.seq_user_groups)
-    }
-
-    pub fn todos(&mut self) -> &mut Vec<Todo> {
-        &mut self.todos
     }
 }
 

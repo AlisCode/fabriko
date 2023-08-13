@@ -7,17 +7,11 @@ use crate::{city::CityFactory, TestContext};
 #[derive(*)]
 pub struct CountryId(i32);
 
-#[derive(Debug)]
+#[derive(Debug, WithIdentifier)]
 pub struct Country {
+    #[identifier]
     pub id: CountryId,
     pub name: String,
-}
-
-impl WithIdentifier for Country {
-    type ID = CountryId;
-    fn extract_id(&self) -> Self::ID {
-        self.id
-    }
 }
 
 #[derive(Factory)]

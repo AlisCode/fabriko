@@ -7,20 +7,13 @@ use nutype::nutype;
 #[derive(*)]
 pub struct CityId(i32);
 
-#[derive(Debug)]
+#[derive(Debug, WithIdentifier)]
 pub struct City {
+    #[identifier]
     pub id: CityId,
     pub name: String,
     pub population: u32,
     pub country: CountryId,
-}
-
-impl WithIdentifier for City {
-    type ID = CityId;
-
-    fn extract_id(&self) -> Self::ID {
-        self.id
-    }
 }
 
 #[derive(Factory)]

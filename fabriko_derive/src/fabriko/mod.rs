@@ -5,7 +5,6 @@ use syn::{DeriveInput, Ident};
 mod attribute;
 
 #[derive(FromDeriveInput)]
-#[darling(supports(struct_named))]
 #[darling(attributes(fabriko))]
 struct FabrikoDeriveInput {
     ident: Ident,

@@ -17,7 +17,7 @@ pub use associations::{
 };
 pub use bundle::FactoryBundle;
 pub use context::Fabriko;
-pub use fabriko_derive::{Fabriko, Factory, FactoryBundle, Mixin};
+pub use fabriko_derive::{Fabriko, Factory, FactoryBundle, Mixin, WithIdentifier};
 pub use factory::{BuildResource, Factory, FactoryContext};
 pub use mixins::WithMixin;
 pub use tuple_hack::AppendTuple;

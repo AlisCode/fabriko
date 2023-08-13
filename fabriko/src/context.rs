@@ -7,6 +7,10 @@ impl<CTX: FactoryContext> Fabriko<CTX>
 where
     CTX::Error: std::error::Error,
 {
+    pub fn into_inner(self) -> CTX {
+        self.0
+    }
+
     pub fn new(ctx: CTX) -> Self {
         Fabriko(ctx)
     }
